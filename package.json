@@ -1,0 +1,94 @@
+{
+  "name": "cardano-governance-metadata",
+  "version": "0.1.0",
+  "description": "TypeScript library for fetching, parsing, validating, and verifying Cardano governance metadata (CIP-100, CIP-108, CIP-119, CIP-136)",
+  "type": "module",
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      },
+      "require": {
+        "types": "./dist/index.d.cts",
+        "default": "./dist/index.cjs"
+      }
+    },
+    "./cip100": {
+      "import": {
+        "types": "./dist/cip100/index.d.ts",
+        "default": "./dist/cip100/index.js"
+      },
+      "require": {
+        "types": "./dist/cip100/index.d.cts",
+        "default": "./dist/cip100/index.cjs"
+      }
+    },
+    "./cip108": {
+      "import": {
+        "types": "./dist/cip108/index.d.ts",
+        "default": "./dist/cip108/index.js"
+      },
+      "require": {
+        "types": "./dist/cip108/index.d.cts",
+        "default": "./dist/cip108/index.cjs"
+      }
+    },
+    "./cip119": {
+      "import": {
+        "types": "./dist/cip119/index.d.ts",
+        "default": "./dist/cip119/index.js"
+      },
+      "require": {
+        "types": "./dist/cip119/index.d.cts",
+        "default": "./dist/cip119/index.cjs"
+      }
+    },
+    "./cip136": {
+      "import": {
+        "types": "./dist/cip136/index.d.ts",
+        "default": "./dist/cip136/index.js"
+      },
+      "require": {
+        "types": "./dist/cip136/index.d.cts",
+        "default": "./dist/cip136/index.cjs"
+      }
+    }
+  },
+  "files": [
+    "dist",
+    "LICENSE",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "bun run build:esm && bun run build:cjs && bun run build:types",
+    "build:esm": "bun build ./src/index.ts ./src/cip100/index.ts ./src/cip108/index.ts ./src/cip119/index.ts ./src/cip136/index.ts --outdir ./dist --format esm --splitting --target browser",
+    "build:cjs": "bun build ./src/index.ts ./src/cip100/index.ts ./src/cip108/index.ts ./src/cip119/index.ts ./src/cip136/index.ts --outdir ./dist --format cjs --splitting --target node",
+    "build:types": "tsc --project tsconfig.build.json --emitDeclarationOnly",
+    "test": "bun test",
+    "test:watch": "bun test --watch",
+    "type-check": "tsc --noEmit",
+    "lint": "biome check ./src",
+    "clean": "rm -rf dist"
+  },
+  "dependencies": {
+    "@noble/ed25519": "^2.2.3",
+    "blakejs": "^1.2.1",
+    "jsonld": "^8.3.3",
+    "zod": "^3.24.2"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "^1.9.4",
+    "@types/jsonld": "^1.5.15",
+    "bun-types": "^1.2.5",
+    "typescript": "^5.7.3"
+  },
+  "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/amanita-labs/governance-metadata.git"
+  }
+}

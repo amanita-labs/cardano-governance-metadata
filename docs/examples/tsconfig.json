@@ -1,0 +1,16 @@
+{
+  "compilerOptions": {
+    "target": "ESNext",
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "strict": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "noEmit": true,
+    "paths": {
+      "cardano-governance-metadata": ["../../src/index.ts"],
+      "cardano-governance-metadata/*": ["../../src/*/index.ts"]
+    }
+  },
+  "include": ["./**/*.ts", "../../src/globals.d.ts"]
+}
