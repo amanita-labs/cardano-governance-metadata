@@ -1,4 +1,4 @@
-# cardano-governance-metadata
+# @amanita-labs/cardano-governance-metadata
 
 TypeScript library for fetching, parsing, validating, and verifying Cardano governance metadata.
 
@@ -15,7 +15,7 @@ Supports [CIP-100](https://github.com/cardano-foundation/CIPs/tree/master/CIP-01
 ## Install
 
 ```bash
-bun add cardano-governance-metadata
+bun add @amanita-labs/cardano-governance-metadata
 ```
 
 ## Quick Start
@@ -25,7 +25,7 @@ bun add cardano-governance-metadata
 Given any governance metadata URI, `resolve()` will fetch it, detect which CIP standard it conforms to, validate it, verify signatures, and report any extra fields:
 
 ```typescript
-import { resolve } from "cardano-governance-metadata";
+import { resolve } from "@amanita-labs/cardano-governance-metadata";
 
 const result = await resolve(
   "ipfs://QmExampleCid",
@@ -53,7 +53,7 @@ if (result.success) {
 ### Parse a governance metadata document
 
 ```typescript
-import { cip100, detectCipStandard } from "cardano-governance-metadata";
+import { cip100, detectCipStandard } from "@amanita-labs/cardano-governance-metadata";
 
 const json = `{
   "@context": { ... },
@@ -76,7 +76,7 @@ if (result.success) {
 ### Detect which CIP standard a document uses
 
 ```typescript
-import { detectCipStandard, cip108, cip119, cip136 } from "cardano-governance-metadata";
+import { detectCipStandard, cip108, cip119, cip136 } from "@amanita-labs/cardano-governance-metadata";
 
 const doc = JSON.parse(rawJson);
 const standard = detectCipStandard(doc);
@@ -112,7 +112,7 @@ switch (standard) {
 ### Validate a DRep registration (CIP-119)
 
 ```typescript
-import { cip119 } from "cardano-governance-metadata";
+import { cip119 } from "@amanita-labs/cardano-governance-metadata";
 
 const result = cip119.validate({
   "@context": { /* ... */ },
@@ -139,7 +139,7 @@ if (!result.success) {
 ### Validate a governance action (CIP-108)
 
 ```typescript
-import { cip108 } from "cardano-governance-metadata";
+import { cip108 } from "@amanita-labs/cardano-governance-metadata";
 
 const result = cip108.validate({
   "@context": { /* ... */ },
@@ -160,7 +160,7 @@ if (result.success) {
 ### Fetch and verify metadata from a URI
 
 ```typescript
-import { cip100 } from "cardano-governance-metadata";
+import { cip100 } from "@amanita-labs/cardano-governance-metadata";
 
 // Verify against an on-chain anchor hash
 const result = await cip100.verify(
@@ -183,7 +183,7 @@ if (result.success) {
 ### Fetch from IPFS or Arweave
 
 ```typescript
-import { fetchMetadata } from "cardano-governance-metadata";
+import { fetchMetadata } from "@amanita-labs/cardano-governance-metadata";
 
 // IPFS
 const ipfsResult = await fetchMetadata("ipfs://QmXoypizjW3WknFiJnKLwHCnL72vedxjQkDDP1mXWo6uco");
@@ -205,7 +205,7 @@ if (ipfsResult.success) {
 ### Verify a CC vote rationale (CIP-136)
 
 ```typescript
-import { cip136 } from "cardano-governance-metadata";
+import { cip136 } from "@amanita-labs/cardano-governance-metadata";
 
 const result = cip136.parse({
   "@context": { /* ... */ },
@@ -239,7 +239,7 @@ CIP-169 introduces an optional `body.onChain` property that cryptographically bi
 
 ```typescript
 import * as CSL from "@emurgo/cardano-serialization-lib-nodejs";
-import { resolve, cip169 } from "cardano-governance-metadata";
+import { resolve, cip169 } from "@amanita-labs/cardano-governance-metadata";
 
 // One-time at startup. Pick the CSL build that matches your environment:
 //   @emurgo/cardano-serialization-lib-nodejs   (Node)
@@ -278,7 +278,7 @@ The library bundles every CIP context (CIP-100/108/119/136/169) under both `raw.
 By default, an unknown `@context` URI errors with `MISSING_CONTEXT` rather than silently fetching it (which would make signature verification non-reproducible). To allow other URIs, pass `contextOptions`:
 
 ```typescript
-import { resolve, registerContext } from "cardano-governance-metadata";
+import { resolve, registerContext } from "@amanita-labs/cardano-governance-metadata";
 
 // Option 1: register a context up front (e.g. an Intersect-MBO-hosted schema)
 registerContext(
@@ -304,8 +304,8 @@ await resolve("ipfs://...", { contextOptions: { policy: "fetch" } });
 Import only the CIP module you need for smaller bundles:
 
 ```typescript
-import { parse, validate, verify } from "cardano-governance-metadata/cip119";
-import type { Cip119Document } from "cardano-governance-metadata/cip119";
+import { parse, validate, verify } from "@amanita-labs/cardano-governance-metadata/cip119";
+import type { Cip119Document } from "@amanita-labs/cardano-governance-metadata/cip119";
 ```
 
 Available subpaths: `/cip100`, `/cip108`, `/cip119`, `/cip136`, `/cip169`
@@ -402,7 +402,7 @@ type Result<T, E = Error> =
 Errors include a machine-readable `code` for programmatic matching:
 
 ```typescript
-import { ErrorCode } from "cardano-governance-metadata";
+import { ErrorCode } from "@amanita-labs/cardano-governance-metadata";
 
 const result = cip108.parse(input);
 if (!result.success) {
