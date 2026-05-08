@@ -1,4 +1,5 @@
 import type {
+  CipExtension,
   CipStandard,
   ExtraFieldInfo,
   ResolvedMetadata,
@@ -24,19 +25,19 @@ const KNOWN_DOCUMENT_FIELDS = new Set([
 
 const KNOWN_BODY_FIELDS: Record<CipStandard, Set<string>> = {
   "CIP-100": new Set([
-    "references", "comment", "externalUpdates",
+    "references", "comment", "externalUpdates", "onChain",
   ]),
   "CIP-108": new Set([
-    "references", "comment", "externalUpdates",
+    "references", "comment", "externalUpdates", "onChain",
     "title", "abstract", "motivation", "rationale",
   ]),
   "CIP-119": new Set([
-    "references", "comment", "externalUpdates",
+    "references", "comment", "externalUpdates", "onChain",
     "givenName", "image", "objectives", "motivations",
     "qualifications", "paymentAddress", "doNotList",
   ]),
   "CIP-136": new Set([
-    "references", "comment", "externalUpdates",
+    "references", "comment", "externalUpdates", "onChain",
     "summary", "rationaleStatement", "precedentDiscussion",
     "counterargumentDiscussion", "conclusion", "internalVote",
   ]),
@@ -128,7 +129,14 @@ export async function resolve(
   // 5. Collect extra fields not defined by the detected CIP
   const extraFields = collectExtraFields(raw, cipStandard);
 
-  // 6. Optionally verify (anchor hash + witness signatures)
+  // 6. Detect cross-cutting CIP extensions
+  const extensions: CipExtension[] = [];
+  const body = raw.body;
+  if (body && typeof body === "object" && "onChain" in body && (body as Record<string, unknown>).onChain !== undefined) {
+    extensions.push("CIP-169");
+  }
+
+  // 7. Optionally verify (anchor hash + witness signatures)
   let verification = undefined;
   if (!options?.skipVerification) {
     const verifyResult = await verifyCip100(
@@ -136,6 +144,7 @@ export async function resolve(
       {
         anchorHash: options?.anchorHash,
         fetchOptions: options?.fetchOptions,
+        contextOptions: options?.contextOptions,
       },
     );
     if (verifyResult.success) {
@@ -147,6 +156,7 @@ export async function resolve(
     success: true,
     data: {
       cipStandard,
+      extensions,
       document: parseResult.data as unknown as Record<string, unknown>,
       rawBytes,
       extraFields,

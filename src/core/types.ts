@@ -5,6 +5,8 @@ export type WitnessAlgorithm = "ed25519";
 
 export type CipStandard = "CIP-100" | "CIP-108" | "CIP-119" | "CIP-136";
 
+export type CipExtension = "CIP-169";
+
 // ─── Witness ────────────────────────────────────────────
 export interface Witness {
   witnessAlgorithm: WitnessAlgorithm;
@@ -97,11 +99,30 @@ export interface VerifyOptions {
   anchorHash?: string;
   fetchOptions?: FetchOptions;
   skipWitnessVerification?: boolean;
+  contextOptions?: ContextResolutionOptions;
+}
+
+// ─── Context resolution ─────────────────────────────────
+export type ContextPolicy = "bundled-only" | "allowlist" | "fetch";
+
+export interface ContextResolutionOptions {
+  policy?: ContextPolicy;
+  allowlist?: (string | RegExp)[];
+  overrides?: Record<string, object>;
+  cache?: Map<string, RemoteContextDocument>;
+  fetch?: typeof globalThis.fetch;
+}
+
+export interface RemoteContextDocument {
+  contextUrl: string | undefined;
+  documentUrl: string;
+  document: unknown;
 }
 
 // ─── Resolve ────────────────────────────────────────────
 export interface ResolvedMetadata {
   cipStandard: CipStandard;
+  extensions: CipExtension[];
   document: Record<string, unknown>;
   rawBytes: Uint8Array;
   extraFields: ExtraFieldInfo[];
@@ -117,4 +138,5 @@ export interface ResolveOptions {
   anchorHash?: string;
   fetchOptions?: FetchOptions;
   skipVerification?: boolean;
+  contextOptions?: ContextResolutionOptions;
 }

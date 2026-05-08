@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { AuthorSchema, ExternalUpdateSchema } from "../core/schemas.js";
+import { OnChainSchema } from "../cip169/schemas.js";
 
 const Cip119ReferenceSchema = z.object({
   "@type": z.enum(["Link", "Identity", "GovernanceMetadata", "Other"]),
@@ -24,6 +25,7 @@ export const Cip119BodySchema = z.object({
   references: z.array(Cip119ReferenceSchema).optional(),
   comment: z.string().optional(),
   externalUpdates: z.array(ExternalUpdateSchema).optional(),
+  onChain: OnChainSchema.optional(),
 }).passthrough();
 
 export const Cip119DocumentSchema = z.object({

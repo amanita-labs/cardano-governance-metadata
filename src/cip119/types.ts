@@ -1,5 +1,6 @@
 import type { ExternalUpdate } from "../core/types.js";
 import type { Cip100Document } from "../cip100/types.js";
+import type { OnChain } from "../cip169/types.js";
 
 export type Cip119ReferenceType =
   | "Link"
@@ -30,6 +31,7 @@ export interface Cip119Body {
   references?: Cip119Reference[];
   comment?: string;
   externalUpdates?: ExternalUpdate[];
+  onChain?: OnChain;
 }
 
 export interface Cip119Document extends Omit<Cip100Document, "body" | "authors"> {

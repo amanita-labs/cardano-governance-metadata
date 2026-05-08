@@ -10,6 +10,7 @@ Supports [CIP-100](https://github.com/cardano-foundation/CIPs/tree/master/CIP-01
 | CIP-108 | Governance Actions |
 | CIP-119 | DRep Registration |
 | CIP-136 | Constitutional Committee Votes |
+| CIP-169 | On-Chain Effects (cross-cutting; layered on any of the above) |
 
 ## Install
 
@@ -232,6 +233,72 @@ if (result.success) {
 }
 ```
 
+### Verify metadata against an on-chain transaction (CIP-169)
+
+CIP-169 introduces an optional `body.onChain` property that cryptographically binds metadata to the exact `ProposalProcedure` / `VotingProcedure` / DRep cert it describes — closing metadata-replay and multi-author-misattachment gaps. This library decodes the whole Conway transaction itself (via the Cardano Serialization Library) and self-verifies the binding.
+
+```typescript
+import * as CSL from "@emurgo/cardano-serialization-lib-nodejs";
+import { resolve, cip169 } from "cardano-governance-metadata";
+
+// One-time at startup. Pick the CSL build that matches your environment:
+//   @emurgo/cardano-serialization-lib-nodejs   (Node)
+//   @emurgo/cardano-serialization-lib-browser  (Browser)
+//   @emurgo/cardano-serialization-lib-asmjs    (universal, slower)
+//   @dcspark/cardano-multiplatform-lib-*        (CML — also accepted)
+cip169.setCardanoSerializationLib(CSL);
+
+const r = await resolve("ipfs://QmExampleCid");
+if (r.success && r.data.extensions.includes("CIP-169")) {
+  const txCbor = "84a700818258..."; // raw Conway transaction (hex or Uint8Array)
+  const v = await cip169.verifyAgainstTx(r.data.document, txCbor);
+
+  if (v.success && v.data.matched) {
+    console.log("metadata matches on-chain effect", v.data.selectorUsed);
+  } else if (v.success) {
+    console.error("MISMATCH — possible metadata replay", v.data.differences);
+  }
+}
+```
+
+`verifyAgainstTx` decodes only the three transaction-body fields CIP-169 binds (`certs`, `voting_procedures`, `voting_proposals`). Self-referential anchors are stripped per spec. Pass an explicit `selector` (`{ kind: 'proposalProcedure'|'certificate'|'votingProcedures', index? }`) when the transaction contains multiple bound items.
+
+The lower-level `cip169.compareOnChain(metadataOnChain, alreadyDecodedAction)` and `cip169.decodeConwayTx(txBytes)` are also exported for callers who need to drive each step themselves.
+
+### Resolving JSON-LD `@context` URIs
+
+Many real metadata documents ship `@context` as a single URI string instead of an inlined object — for example, the CIP-169 PR examples use:
+
+```json
+"@context": "https://github.com/cardano-foundation/CIPs/blob/master/CIP-0169/cip-0169.common.jsonld"
+```
+
+The library bundles every CIP context (CIP-100/108/119/136/169) under both `raw.githubusercontent.com/...` and `github.com/.../blob/...` URLs and resolves them offline during canonicalization.
+
+By default, an unknown `@context` URI errors with `MISSING_CONTEXT` rather than silently fetching it (which would make signature verification non-reproducible). To allow other URIs, pass `contextOptions`:
+
+```typescript
+import { resolve, registerContext } from "cardano-governance-metadata";
+
+// Option 1: register a context up front (e.g. an Intersect-MBO-hosted schema)
+registerContext(
+  "https://intersectmbo.github.io/governance-actions/v1.1.0/schemas/hard-fork-initiation/common.jsonld",
+  await loadLocalJsonld(),
+);
+
+// Option 2: per-call allowlist (globs supported)
+const r = await resolve("ipfs://...", {
+  contextOptions: {
+    policy: "allowlist",
+    allowlist: ["https://intersectmbo.github.io/governance-actions/v*/**"],
+    overrides: { /* exact-URL → context object */ },
+  },
+});
+
+// Option 3: opt into network fetches (caches results)
+await resolve("ipfs://...", { contextOptions: { policy: "fetch" } });
+```
+
 ## Subpath Imports
 
 Import only the CIP module you need for smaller bundles:
@@ -241,7 +308,7 @@ import { parse, validate, verify } from "cardano-governance-metadata/cip119";
 import type { Cip119Document } from "cardano-governance-metadata/cip119";
 ```
 
-Available subpaths: `/cip100`, `/cip108`, `/cip119`, `/cip136`
+Available subpaths: `/cip100`, `/cip108`, `/cip119`, `/cip136`, `/cip169`
 
 ## API
 
@@ -296,6 +363,7 @@ resolve(
 ```typescript
 interface ResolvedMetadata {
   cipStandard: "CIP-100" | "CIP-108" | "CIP-119" | "CIP-136";
+  extensions: ("CIP-169")[];           // cross-cutting extensions detected on the body
   document: Record<string, unknown>;   // full document with extra fields preserved
   rawBytes: Uint8Array;
   extraFields: ExtraFieldInfo[];       // fields not defined by the detected CIP

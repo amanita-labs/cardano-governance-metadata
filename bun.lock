@@ -11,10 +11,21 @@
       },
       "devDependencies": {
         "@biomejs/biome": "^1.9.4",
+        "@emurgo/cardano-serialization-lib-nodejs": "^14.1.2",
         "@types/jsonld": "^1.5.15",
         "bun-types": "^1.2.5",
         "typescript": "^5.7.3",
       },
+      "peerDependencies": {
+        "@emurgo/cardano-serialization-lib-asmjs": "*",
+        "@emurgo/cardano-serialization-lib-browser": "*",
+        "@emurgo/cardano-serialization-lib-nodejs": "*",
+      },
+      "optionalPeers": [
+        "@emurgo/cardano-serialization-lib-asmjs",
+        "@emurgo/cardano-serialization-lib-browser",
+        "@emurgo/cardano-serialization-lib-nodejs",
+      ],
     },
   },
   "packages": {
@@ -37,6 +48,8 @@
     "@biomejs/cli-win32-x64": ["@biomejs/cli-win32-x64@1.9.4", "", { "os": "win32", "cpu": "x64" }, "sha512-8Y5wMhVIPaWe6jw2H+KlEm4wP/f7EW3810ZLmDlrEEy5KvBsb9ECEfu/kMWD484ijfQ8+nIi0giMgu9g1UAuuA=="],
 
     "@digitalbazaar/http-client": ["@digitalbazaar/http-client@3.4.1", "", { "dependencies": { "ky": "^0.33.3", "ky-universal": "^0.11.0", "undici": "^5.21.2" } }, "sha512-Ahk1N+s7urkgj7WvvUND5f8GiWEPfUw0D41hdElaqLgu8wZScI8gdI0q+qWw5N1d35x7GCRH2uk9mi+Uzo9M3g=="],
+
+    "@emurgo/cardano-serialization-lib-nodejs": ["@emurgo/cardano-serialization-lib-nodejs@14.1.2", "", {}, "sha512-g8sxCEaQXqRt4A3zmhebuo+pMucVDs/4FlkUD+J+awJCJMAkK7eCFBEb09d8+jREec687D5fY+FG9NemExSQhQ=="],
 
     "@fastify/busboy": ["@fastify/busboy@2.1.1", "", {}, "sha512-vBZP4NlzfOlerQTnba4aqZoMhE/a9HY7HRqoOPaETQcSQuWEIyZMHGfVu6w9wGtGK5fED5qRs2DteVCjOH60sA=="],
 
