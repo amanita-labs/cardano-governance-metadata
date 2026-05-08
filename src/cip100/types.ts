@@ -5,11 +5,13 @@ import type {
   JsonLdEnvelope,
   Reference,
 } from "../core/types.js";
+import type { OnChain } from "../cip169/types.js";
 
 export interface Cip100Body {
   references?: Reference[];
   comment?: string;
   externalUpdates?: ExternalUpdate[];
+  onChain?: OnChain;
 }
 
 export interface Cip100Document extends JsonLdEnvelope {

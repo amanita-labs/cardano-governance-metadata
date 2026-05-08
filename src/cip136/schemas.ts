@@ -4,6 +4,7 @@ import {
   ExternalUpdateSchema,
   HashedReferenceSchema,
 } from "../core/schemas.js";
+import { OnChainSchema } from "../cip169/schemas.js";
 
 const Cip136ReferenceSchema = HashedReferenceSchema.extend({
   "@type": z.enum(["GovernanceMetadata", "Other", "RelevantArticles"]),
@@ -27,6 +28,7 @@ export const Cip136BodySchema = z.object({
   references: z.array(Cip136ReferenceSchema).optional(),
   comment: z.string().optional(),
   externalUpdates: z.array(ExternalUpdateSchema).optional(),
+  onChain: OnChainSchema.optional(),
 }).passthrough();
 
 export const Cip136DocumentSchema = z.object({

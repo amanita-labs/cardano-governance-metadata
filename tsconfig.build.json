@@ -3,5 +3,6 @@
   "compilerOptions": {
     "emitDeclarationOnly": true,
     "outDir": "./dist"
-  }
+  },
+  "exclude": ["node_modules", "dist", "test", "src/**/__tests__/**"]
 }

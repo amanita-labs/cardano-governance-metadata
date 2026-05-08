@@ -4,11 +4,13 @@ import {
   ExternalUpdateSchema,
   ReferenceSchema,
 } from "../core/schemas.js";
+import { OnChainSchema } from "../cip169/schemas.js";
 
 export const Cip100BodySchema = z.object({
   references: z.array(ReferenceSchema).optional(),
   comment: z.string().optional(),
   externalUpdates: z.array(ExternalUpdateSchema).optional(),
+  onChain: OnChainSchema.optional(),
 }).passthrough();
 
 export const Cip100DocumentSchema = z.object({

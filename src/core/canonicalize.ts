@@ -1,10 +1,15 @@
 import jsonld from "jsonld";
-import type { Result } from "./types.js";
+import type { ContextResolutionOptions, Result } from "./types.js";
 import { ErrorCode, VerificationError } from "./errors.js";
-import { createDocumentLoader, type DocumentLoader } from "./context.js";
+import {
+  createDocumentLoader,
+  type DocumentLoader,
+  type DocumentLoaderFn,
+} from "./context.js";
 
 export interface CanonicalizeOptions {
-  documentLoader?: DocumentLoader;
+  documentLoader?: DocumentLoader | DocumentLoaderFn;
+  contextOptions?: ContextResolutionOptions;
 }
 
 export async function canonicalizeBody(
@@ -13,7 +18,7 @@ export async function canonicalizeBody(
 ): Promise<Result<string, VerificationError>> {
   try {
     const documentLoader =
-      options?.documentLoader ?? createDocumentLoader();
+      options?.documentLoader ?? createDocumentLoader(options?.contextOptions);
 
     // Canonicalize the full document to N-Quads using URDNA2015
     const canonicalized = await jsonld.canonize(document, {

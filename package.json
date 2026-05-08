@@ -56,6 +56,16 @@
         "types": "./dist/cip136/index.d.cts",
         "default": "./dist/cip136/index.cjs"
       }
+    },
+    "./cip169": {
+      "import": {
+        "types": "./dist/cip169/index.d.ts",
+        "default": "./dist/cip169/index.js"
+      },
+      "require": {
+        "types": "./dist/cip169/index.d.cts",
+        "default": "./dist/cip169/index.cjs"
+      }
     }
   },
   "files": [
@@ -65,8 +75,8 @@
   ],
   "scripts": {
     "build": "bun run build:esm && bun run build:cjs && bun run build:types",
-    "build:esm": "bun build ./src/index.ts ./src/cip100/index.ts ./src/cip108/index.ts ./src/cip119/index.ts ./src/cip136/index.ts --outdir ./dist --format esm --splitting --target browser",
-    "build:cjs": "bun build ./src/index.ts ./src/cip100/index.ts ./src/cip108/index.ts ./src/cip119/index.ts ./src/cip136/index.ts --outdir ./dist --format cjs --splitting --target node",
+    "build:esm": "bun build ./src/index.ts ./src/cip100/index.ts ./src/cip108/index.ts ./src/cip119/index.ts ./src/cip136/index.ts ./src/cip169/index.ts --outdir ./dist --format esm --splitting --target browser",
+    "build:cjs": "bun build ./src/index.ts ./src/cip100/index.ts ./src/cip108/index.ts ./src/cip119/index.ts ./src/cip136/index.ts ./src/cip169/index.ts --outdir ./dist --format cjs --splitting --target node",
     "build:types": "tsc --project tsconfig.build.json --emitDeclarationOnly",
     "test": "bun test",
     "test:watch": "bun test --watch",
@@ -82,9 +92,20 @@
   },
   "devDependencies": {
     "@biomejs/biome": "^1.9.4",
+    "@emurgo/cardano-serialization-lib-nodejs": "^14.1.2",
     "@types/jsonld": "^1.5.15",
     "bun-types": "^1.2.5",
     "typescript": "^5.7.3"
+  },
+  "peerDependencies": {
+    "@emurgo/cardano-serialization-lib-asmjs": "*",
+    "@emurgo/cardano-serialization-lib-browser": "*",
+    "@emurgo/cardano-serialization-lib-nodejs": "*"
+  },
+  "peerDependenciesMeta": {
+    "@emurgo/cardano-serialization-lib-asmjs": { "optional": true },
+    "@emurgo/cardano-serialization-lib-browser": { "optional": true },
+    "@emurgo/cardano-serialization-lib-nodejs": { "optional": true }
   },
   "license": "Apache-2.0",
   "repository": {

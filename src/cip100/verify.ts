@@ -76,7 +76,9 @@ export async function verify(
       if (!author.witness?.publicKey || !author.witness?.signature) continue;
 
       // Canonicalize the body
-      const canonResult = await canonicalizeBody(document);
+      const canonResult = await canonicalizeBody(document, {
+        contextOptions: options?.contextOptions,
+      });
       if (!canonResult.success) return canonResult;
 
       // Hash the canonicalized N-Quads
