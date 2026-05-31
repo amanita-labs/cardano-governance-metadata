@@ -136,7 +136,9 @@ interface ProtectedHeader {
  */
 function decodeProtectedHeader(
 	protectedBstr: Uint8Array,
-): { ok: true; header: ProtectedHeader | null } | { ok: false; reason: string } {
+):
+	| { ok: true; header: ProtectedHeader | null }
+	| { ok: false; reason: string } {
 	if (protectedBstr.length === 0) {
 		return { ok: true, header: null };
 	}
