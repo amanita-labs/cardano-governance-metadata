@@ -1,208 +1,284 @@
 import type { JsonLd, RemoteDocument } from "jsonld/jsonld-spec";
-import type {
-  ContextPolicy,
-  ContextResolutionOptions,
-  RemoteContextDocument,
-} from "./types.js";
 import { ErrorCode, ParseError } from "./errors.js";
+import type {
+	ContextPolicy,
+	ContextResolutionOptions,
+	RemoteContextDocument,
+} from "./types.js";
 
 export type DocumentLoader = (
-  url: string,
-  callback: (err: Error, remoteDoc: RemoteDocument) => void,
+	url: string,
+	callback: (err: Error, remoteDoc: RemoteDocument) => void,
 ) => Promise<RemoteDocument>;
 
 type LoaderResult = Promise<RemoteDocument>;
 export type DocumentLoaderFn = (url: string) => LoaderResult;
 
 interface BundleEntry {
-  name: string;
-  load: () => Promise<object>;
+	name: string;
+	load: () => Promise<object>;
 }
 
+import cip0100Context from "../../contexts/cip-0100.common.jsonld" with {
+	type: "json",
+};
+import cip0108Context from "../../contexts/cip-0108.common.jsonld" with {
+	type: "json",
+};
+import cip0119Context from "../../contexts/cip-0119.common.jsonld" with {
+	type: "json",
+};
+import cip0136Context from "../../contexts/cip-0136.common.jsonld" with {
+	type: "json",
+};
+import cip0169Context from "../../contexts/cip-0169.common.jsonld" with {
+	type: "json",
+};
+
 const BUNDLED_LOADERS: Record<string, () => Promise<object>> = {
-  "cip-0100": async () =>
-    (await import("../../contexts/cip-0100.common.jsonld")).default,
-  "cip-0108": async () =>
-    (await import("../../contexts/cip-0108.common.jsonld")).default,
-  "cip-0119": async () =>
-    (await import("../../contexts/cip-0119.common.jsonld")).default,
-  "cip-0136": async () =>
-    (await import("../../contexts/cip-0136.common.jsonld")).default,
-  "cip-0169": async () =>
-    (await import("../../contexts/cip-0169.common.jsonld")).default,
+	"cip-0100": async () => cip0100Context as object,
+	"cip-0108": async () => cip0108Context as object,
+	"cip-0119": async () => cip0119Context as object,
+	"cip-0136": async () => cip0136Context as object,
+	"cip-0169": async () => cip0169Context as object,
 };
 
 const BUNDLED_URLS: Record<string, BundleEntry> = makeBundledUrls();
 
 function makeBundledUrls(): Record<string, BundleEntry> {
-  const entries: Record<string, BundleEntry> = {};
+	const entries: Record<string, BundleEntry> = {};
 
-  const cipFiles: Array<{
-    cip: string;
-    name: string;
-    canonicalFilename: string;
-    extraFilenames?: string[];
-  }> = [
-    { cip: "0100", name: "cip-0100", canonicalFilename: "cip-0100.common.jsonld" },
-    { cip: "0108", name: "cip-0108", canonicalFilename: "cip-0108.common.jsonld" },
-    { cip: "0119", name: "cip-0119", canonicalFilename: "cip-0119.common.jsonld" },
-    {
-      cip: "0136",
-      name: "cip-0136",
-      canonicalFilename: "cip-0136.common.jsonld",
-      extraFilenames: ["cip-136.common.jsonld"],
-    },
-    { cip: "0169", name: "cip-0169", canonicalFilename: "cip-0169.common.jsonld" },
-  ];
+	const cipFiles: Array<{
+		cip: string;
+		name: string;
+		canonicalFilename: string;
+		extraFilenames?: string[];
+	}> = [
+		{
+			cip: "0100",
+			name: "cip-0100",
+			canonicalFilename: "cip-0100.common.jsonld",
+		},
+		{
+			cip: "0108",
+			name: "cip-0108",
+			canonicalFilename: "cip-0108.common.jsonld",
+		},
+		{
+			cip: "0119",
+			name: "cip-0119",
+			canonicalFilename: "cip-0119.common.jsonld",
+		},
+		{
+			cip: "0136",
+			name: "cip-0136",
+			canonicalFilename: "cip-0136.common.jsonld",
+			extraFilenames: ["cip-136.common.jsonld"],
+		},
+		{
+			cip: "0169",
+			name: "cip-0169",
+			canonicalFilename: "cip-0169.common.jsonld",
+		},
+	];
 
-  for (const { cip, name, canonicalFilename, extraFilenames } of cipFiles) {
-    const filenames = [canonicalFilename, ...(extraFilenames ?? [])];
-    for (const filename of filenames) {
-      const urls = [
-        `https://raw.githubusercontent.com/cardano-foundation/CIPs/master/CIP-${cip}/${filename}`,
-        `https://github.com/cardano-foundation/CIPs/blob/master/CIP-${cip}/${filename}`,
-        `https://github.com/cardano-foundation/CIPs/raw/master/CIP-${cip}/${filename}`,
-      ];
-      for (const url of urls) {
-        entries[url] = { name, load: BUNDLED_LOADERS[name] };
-      }
-    }
-  }
+	for (const { cip, name, canonicalFilename, extraFilenames } of cipFiles) {
+		const filenames = [canonicalFilename, ...(extraFilenames ?? [])];
+		for (const filename of filenames) {
+			const urls = [
+				`https://raw.githubusercontent.com/cardano-foundation/CIPs/master/CIP-${cip}/${filename}`,
+				`https://github.com/cardano-foundation/CIPs/blob/master/CIP-${cip}/${filename}`,
+				`https://github.com/cardano-foundation/CIPs/raw/master/CIP-${cip}/${filename}`,
+			];
+			for (const url of urls) {
+				entries[url] = { name, load: BUNDLED_LOADERS[name] };
+			}
+		}
+	}
 
-  return entries;
+	return entries;
 }
 
 const runtimeBundles = new Map<string, object>();
 const contextCache = new Map<string, object>();
 
+/**
+ * Register a JSON-LD `@context` document at a URL so canonicalization /
+ * verification can resolve it offline. Useful when you want to pin a specific
+ * version of a context that isn't bundled with this library.
+ *
+ * Runtime registrations take precedence over bundled URLs and survive across
+ * `createDocumentLoader` calls until `unregisterContext` or
+ * `clearRegisteredContexts` is called.
+ *
+ * @example
+ * registerContext(
+ *   "https://intersectmbo.github.io/governance-actions/v1.1.0/schemas/.../common.jsonld",
+ *   await loadLocalJsonld(),
+ * );
+ */
 export function registerContext(url: string, document: object): void {
-  runtimeBundles.set(url, document);
+	runtimeBundles.set(url, document);
 }
 
+/** Remove a previously-registered context. Returns `true` if it was present. */
 export function unregisterContext(url: string): boolean {
-  return runtimeBundles.delete(url);
+	return runtimeBundles.delete(url);
 }
 
+/** Remove all runtime-registered contexts. Bundled CIP contexts are unaffected. */
 export function clearRegisteredContexts(): void {
-  runtimeBundles.clear();
+	runtimeBundles.clear();
 }
 
+/**
+ * List every URL that resolves offline — the bundled CIP-100/108/119/136/169
+ * contexts plus any runtime-registered contexts. Order: bundled first, then
+ * registered in insertion order.
+ */
 export function listBundledContextUrls(): string[] {
-  return [...Object.keys(BUNDLED_URLS), ...runtimeBundles.keys()];
+	return [...Object.keys(BUNDLED_URLS), ...runtimeBundles.keys()];
 }
 
 const DEFAULT_POLICY: ContextPolicy = "allowlist";
 
+/**
+ * Build a JSON-LD document loader that obeys the configured policy.
+ *
+ * Resolution order: explicit `overrides` map → runtime-registered contexts →
+ * bundled CIP contexts → policy decision (`bundled-only` rejects, `allowlist`
+ * fetches matching URLs, `fetch` allows any URL).
+ *
+ * Default policy is `"allowlist"` with no patterns, so unbundled URLs error
+ * with `MISSING_CONTEXT` rather than silently fetching — this keeps signature
+ * verification reproducible.
+ *
+ * @example
+ * // Strictest: only bundled CIP contexts allowed
+ * createDocumentLoader({ policy: "bundled-only" });
+ *
+ * @example
+ * // Allow Intersect-hosted v1+ schemas
+ * createDocumentLoader({
+ *   policy: "allowlist",
+ *   allowlist: ["https://intersectmbo.github.io/governance-actions/v*​/​**"],
+ * });
+ */
 export function createDocumentLoader(
-  options?: ContextResolutionOptions,
+	options?: ContextResolutionOptions,
 ): DocumentLoaderFn {
-  const policy: ContextPolicy = options?.policy ?? DEFAULT_POLICY;
-  const overrides = options?.overrides ?? {};
-  const allowlist = options?.allowlist ?? [];
-  const fetchImpl = options?.fetch ?? globalThis.fetch;
-  const cache = options?.cache ?? new Map<string, RemoteContextDocument>();
+	const policy: ContextPolicy = options?.policy ?? DEFAULT_POLICY;
+	const overrides = options?.overrides ?? {};
+	const allowlist = options?.allowlist ?? [];
+	const fetchImpl = options?.fetch ?? globalThis.fetch;
+	const cache = options?.cache ?? new Map<string, RemoteContextDocument>();
 
-  return async (url: string): Promise<RemoteDocument> => {
-    if (Object.prototype.hasOwnProperty.call(overrides, url)) {
-      return wrap(url, overrides[url]);
-    }
+	return async (url: string): Promise<RemoteDocument> => {
+		if (Object.prototype.hasOwnProperty.call(overrides, url)) {
+			const override = overrides[url];
+			if (override === undefined || override === null) {
+				throw new ParseError(
+					ErrorCode.MISSING_CONTEXT,
+					`contextOptions.overrides["${url}"] is ${override === null ? "null" : "undefined"} — overrides must contain a JSON-LD context document.`,
+				);
+			}
+			return wrap(url, override);
+		}
 
-    if (runtimeBundles.has(url)) {
-      return wrap(url, runtimeBundles.get(url)!);
-    }
+		const runtime = runtimeBundles.get(url);
+		if (runtime) {
+			return wrap(url, runtime);
+		}
 
-    const bundled = BUNDLED_URLS[url];
-    if (bundled) {
-      const cached = contextCache.get(bundled.name);
-      if (cached) return wrap(url, cached);
-      const doc = await bundled.load();
-      contextCache.set(bundled.name, doc);
-      return wrap(url, doc);
-    }
+		const bundled = BUNDLED_URLS[url];
+		if (bundled) {
+			const cached = contextCache.get(bundled.name);
+			if (cached) return wrap(url, cached);
+			const doc = await bundled.load();
+			contextCache.set(bundled.name, doc);
+			return wrap(url, doc);
+		}
 
-    if (policy === "bundled-only") {
-      throw new ParseError(
-        ErrorCode.MISSING_CONTEXT,
-        `JSON-LD @context "${url}" is not bundled. Either register it via registerContext() / contextOptions.overrides, or set contextOptions.policy = "allowlist" with a matching pattern, or "fetch".`,
-      );
-    }
+		if (policy === "bundled-only") {
+			throw new ParseError(
+				ErrorCode.MISSING_CONTEXT,
+				`JSON-LD @context "${url}" is not bundled. Either register it via registerContext() / contextOptions.overrides, or set contextOptions.policy = "allowlist" with a matching pattern, or "fetch".`,
+			);
+		}
 
-    if (policy === "allowlist") {
-      if (!matchesAllowlist(url, allowlist)) {
-        throw new ParseError(
-          ErrorCode.MISSING_CONTEXT,
-          `JSON-LD @context "${url}" is not bundled and does not match contextOptions.allowlist. Add a pattern to allowlist (string with * or ** globs, or a RegExp), pass it via contextOptions.overrides, or use contextOptions.policy = "fetch".`,
-        );
-      }
-    }
+		if (policy === "allowlist") {
+			if (!matchesAllowlist(url, allowlist)) {
+				throw new ParseError(
+					ErrorCode.MISSING_CONTEXT,
+					`JSON-LD @context "${url}" is not bundled and does not match contextOptions.allowlist. Add a pattern to allowlist (string with * or ** globs, or a RegExp), pass it via contextOptions.overrides, or use contextOptions.policy = "fetch".`,
+				);
+			}
+		}
 
-    const cached = cache.get(url);
-    if (cached) return wrap(cached.documentUrl, cached.document as object);
+		const cached = cache.get(url);
+		if (cached) return wrap(cached.documentUrl, cached.document as object);
 
-    if (!fetchImpl) {
-      throw new ParseError(
-        ErrorCode.MISSING_CONTEXT,
-        `Cannot fetch JSON-LD @context "${url}" — no fetch implementation available. Pass contextOptions.fetch or run in an environment with globalThis.fetch.`,
-      );
-    }
+		if (!fetchImpl) {
+			throw new ParseError(
+				ErrorCode.MISSING_CONTEXT,
+				`Cannot fetch JSON-LD @context "${url}" — no fetch implementation available. Pass contextOptions.fetch or run in an environment with globalThis.fetch.`,
+			);
+		}
 
-    const response = await fetchImpl(url);
-    if (!response.ok) {
-      throw new ParseError(
-        ErrorCode.MISSING_CONTEXT,
-        `Failed to fetch JSON-LD @context "${url}": HTTP ${response.status} ${response.statusText}`,
-      );
-    }
-    const document = (await response.json()) as JsonLd;
-    cache.set(url, { contextUrl: undefined, documentUrl: url, document });
-    return wrap(url, document as unknown as object);
-  };
+		const response = await fetchImpl(url);
+		if (!response.ok) {
+			throw new ParseError(
+				ErrorCode.MISSING_CONTEXT,
+				`Failed to fetch JSON-LD @context "${url}": HTTP ${response.status} ${response.statusText}`,
+			);
+		}
+		const document = (await response.json()) as JsonLd;
+		cache.set(url, { contextUrl: undefined, documentUrl: url, document });
+		return wrap(url, document as unknown as object);
+	};
 }
 
 function wrap(url: string, document: object): RemoteDocument {
-  return {
-    contextUrl: undefined,
-    document: document as JsonLd,
-    documentUrl: url,
-  };
+	return {
+		contextUrl: undefined,
+		document: document as JsonLd,
+		documentUrl: url,
+	};
 }
 
-function matchesAllowlist(
-  url: string,
-  patterns: (string | RegExp)[],
-): boolean {
-  for (const pattern of patterns) {
-    if (typeof pattern === "string") {
-      if (pattern === url) return true;
-      if (globToRegExp(pattern).test(url)) return true;
-    } else if (pattern.test(url)) {
-      return true;
-    }
-  }
-  return false;
+function matchesAllowlist(url: string, patterns: (string | RegExp)[]): boolean {
+	for (const pattern of patterns) {
+		if (typeof pattern === "string") {
+			if (pattern === url) return true;
+			if (globToRegExp(pattern).test(url)) return true;
+		} else if (pattern.test(url)) {
+			return true;
+		}
+	}
+	return false;
 }
 
 function globToRegExp(glob: string): RegExp {
-  // Translate ** → .*, * → [^/]*, escape everything else.
-  let i = 0;
-  let out = "";
-  while (i < glob.length) {
-    const ch = glob[i];
-    if (ch === "*") {
-      if (glob[i + 1] === "*") {
-        out += ".*";
-        i += 2;
-      } else {
-        out += "[^/]*";
-        i += 1;
-      }
-    } else if (/[.+?^${}()|[\]\\]/.test(ch)) {
-      out += `\\${ch}`;
-      i += 1;
-    } else {
-      out += ch;
-      i += 1;
-    }
-  }
-  return new RegExp(`^${out}$`);
+	// Translate ** → .*, * → [^/]*, escape everything else.
+	let i = 0;
+	let out = "";
+	while (i < glob.length) {
+		const ch = glob[i];
+		if (ch === "*") {
+			if (glob[i + 1] === "*") {
+				out += ".*";
+				i += 2;
+			} else {
+				out += "[^/]*";
+				i += 1;
+			}
+		} else if (/[.+?^${}()|[\]\\]/.test(ch)) {
+			out += `\\${ch}`;
+			i += 1;
+		} else {
+			out += ch;
+			i += 1;
+		}
+	}
+	return new RegExp(`^${out}$`);
 }

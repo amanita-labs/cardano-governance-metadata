@@ -1,92 +1,62 @@
 {
-  "name": "cardano-governance-metadata",
+  "name": "@amanita-labs/cardano-governance-metadata",
   "version": "0.1.0",
-  "description": "TypeScript library for fetching, parsing, validating, and verifying Cardano governance metadata (CIP-100, CIP-108, CIP-119, CIP-136)",
+  "description": "TypeScript library for fetching, parsing, validating, and verifying Cardano governance metadata (CIP-100, CIP-108, CIP-119, CIP-136, CIP-169)",
   "type": "module",
-  "main": "./dist/index.cjs",
+  "sideEffects": false,
+  "main": "./dist/index.js",
   "module": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "exports": {
     ".": {
-      "import": {
-        "types": "./dist/index.d.ts",
-        "default": "./dist/index.js"
-      },
-      "require": {
-        "types": "./dist/index.d.cts",
-        "default": "./dist/index.cjs"
-      }
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
     },
     "./cip100": {
-      "import": {
-        "types": "./dist/cip100/index.d.ts",
-        "default": "./dist/cip100/index.js"
-      },
-      "require": {
-        "types": "./dist/cip100/index.d.cts",
-        "default": "./dist/cip100/index.cjs"
-      }
+      "types": "./dist/cip100/index.d.ts",
+      "default": "./dist/cip100/index.js"
     },
     "./cip108": {
-      "import": {
-        "types": "./dist/cip108/index.d.ts",
-        "default": "./dist/cip108/index.js"
-      },
-      "require": {
-        "types": "./dist/cip108/index.d.cts",
-        "default": "./dist/cip108/index.cjs"
-      }
+      "types": "./dist/cip108/index.d.ts",
+      "default": "./dist/cip108/index.js"
     },
     "./cip119": {
-      "import": {
-        "types": "./dist/cip119/index.d.ts",
-        "default": "./dist/cip119/index.js"
-      },
-      "require": {
-        "types": "./dist/cip119/index.d.cts",
-        "default": "./dist/cip119/index.cjs"
-      }
+      "types": "./dist/cip119/index.d.ts",
+      "default": "./dist/cip119/index.js"
     },
     "./cip136": {
-      "import": {
-        "types": "./dist/cip136/index.d.ts",
-        "default": "./dist/cip136/index.js"
-      },
-      "require": {
-        "types": "./dist/cip136/index.d.cts",
-        "default": "./dist/cip136/index.cjs"
-      }
+      "types": "./dist/cip136/index.d.ts",
+      "default": "./dist/cip136/index.js"
     },
     "./cip169": {
-      "import": {
-        "types": "./dist/cip169/index.d.ts",
-        "default": "./dist/cip169/index.js"
-      },
-      "require": {
-        "types": "./dist/cip169/index.d.cts",
-        "default": "./dist/cip169/index.cjs"
-      }
+      "types": "./dist/cip169/index.d.ts",
+      "default": "./dist/cip169/index.js"
     }
   },
   "files": [
     "dist",
     "LICENSE",
-    "README.md"
+    "README.md",
+    "CHANGELOG.md"
   ],
+  "engines": {
+    "node": ">=18"
+  },
   "scripts": {
-    "build": "bun run build:esm && bun run build:cjs && bun run build:types",
-    "build:esm": "bun build ./src/index.ts ./src/cip100/index.ts ./src/cip108/index.ts ./src/cip119/index.ts ./src/cip136/index.ts ./src/cip169/index.ts --outdir ./dist --format esm --splitting --target browser",
-    "build:cjs": "bun build ./src/index.ts ./src/cip100/index.ts ./src/cip108/index.ts ./src/cip119/index.ts ./src/cip136/index.ts ./src/cip169/index.ts --outdir ./dist --format cjs --splitting --target node",
+    "build": "bun run build:esm && bun run build:types",
+    "build:esm": "bun build ./src/index.ts --outdir ./dist --format esm --target node --external jsonld --external blakejs --external @noble/ed25519 --external zod --external @emurgo/cardano-serialization-lib-nodejs --external @emurgo/cardano-serialization-lib-browser --external @emurgo/cardano-serialization-lib-asmjs && bun build ./src/cip100/index.ts --outdir ./dist/cip100 --format esm --target node --external jsonld --external blakejs --external @noble/ed25519 --external zod --external @emurgo/cardano-serialization-lib-nodejs --external @emurgo/cardano-serialization-lib-browser --external @emurgo/cardano-serialization-lib-asmjs && bun build ./src/cip108/index.ts --outdir ./dist/cip108 --format esm --target node --external jsonld --external blakejs --external @noble/ed25519 --external zod --external @emurgo/cardano-serialization-lib-nodejs --external @emurgo/cardano-serialization-lib-browser --external @emurgo/cardano-serialization-lib-asmjs && bun build ./src/cip119/index.ts --outdir ./dist/cip119 --format esm --target node --external jsonld --external blakejs --external @noble/ed25519 --external zod --external @emurgo/cardano-serialization-lib-nodejs --external @emurgo/cardano-serialization-lib-browser --external @emurgo/cardano-serialization-lib-asmjs && bun build ./src/cip136/index.ts --outdir ./dist/cip136 --format esm --target node --external jsonld --external blakejs --external @noble/ed25519 --external zod --external @emurgo/cardano-serialization-lib-nodejs --external @emurgo/cardano-serialization-lib-browser --external @emurgo/cardano-serialization-lib-asmjs && bun build ./src/cip169/index.ts --outdir ./dist/cip169 --format esm --target node --external jsonld --external blakejs --external @noble/ed25519 --external zod --external @emurgo/cardano-serialization-lib-nodejs --external @emurgo/cardano-serialization-lib-browser --external @emurgo/cardano-serialization-lib-asmjs",
     "build:types": "tsc --project tsconfig.build.json --emitDeclarationOnly",
     "test": "bun test",
     "test:watch": "bun test --watch",
     "type-check": "tsc --noEmit",
     "lint": "biome check ./src",
-    "clean": "rm -rf dist"
+    "clean": "rm -rf dist",
+    "prepublishOnly": "bun run clean && bun run build && bun test"
   },
   "dependencies": {
     "@noble/ed25519": "^2.2.3",
     "blakejs": "^1.2.1",
+    "cbor2": "^2.3.0",
     "jsonld": "^8.3.3",
     "zod": "^3.24.2"
   },
@@ -103,9 +73,18 @@
     "@emurgo/cardano-serialization-lib-nodejs": "*"
   },
   "peerDependenciesMeta": {
-    "@emurgo/cardano-serialization-lib-asmjs": { "optional": true },
-    "@emurgo/cardano-serialization-lib-browser": { "optional": true },
-    "@emurgo/cardano-serialization-lib-nodejs": { "optional": true }
+    "@emurgo/cardano-serialization-lib-asmjs": {
+      "optional": true
+    },
+    "@emurgo/cardano-serialization-lib-browser": {
+      "optional": true
+    },
+    "@emurgo/cardano-serialization-lib-nodejs": {
+      "optional": true
+    }
+  },
+  "publishConfig": {
+    "access": "public"
   },
   "license": "Apache-2.0",
   "repository": {

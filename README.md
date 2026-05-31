@@ -1,21 +1,25 @@
-# cardano-governance-metadata
+# @amanita-labs/cardano-governance-metadata
 
 TypeScript library for fetching, parsing, validating, and verifying Cardano governance metadata.
 
 Supports [CIP-100](https://github.com/cardano-foundation/CIPs/tree/master/CIP-0100) and its extensions:
 
-| Standard | Description |
-|----------|-------------|
-| CIP-100 | Governance Metadata (base) |
-| CIP-108 | Governance Actions |
-| CIP-119 | DRep Registration |
-| CIP-136 | Constitutional Committee Votes |
-| CIP-169 | On-Chain Effects (cross-cutting; layered on any of the above) |
+| Standard | Description | Spec |
+|----------|-------------|------|
+| CIP-100 | Governance Metadata (base) | [cardano-foundation/CIPs/CIP-0100](https://github.com/cardano-foundation/CIPs/tree/master/CIP-0100) |
+| CIP-108 | Governance Actions | [cardano-foundation/CIPs/CIP-0108](https://github.com/cardano-foundation/CIPs/tree/master/CIP-0108) |
+| CIP-119 | DRep Registration | [cardano-foundation/CIPs/CIP-0119](https://github.com/cardano-foundation/CIPs/tree/master/CIP-0119) |
+| CIP-136 | Constitutional Committee Votes | [cardano-foundation/CIPs/CIP-0136](https://github.com/cardano-foundation/CIPs/tree/master/CIP-0136) |
+| CIP-169 | On-Chain Effects (cross-cutting; layered on any of the above) | [cardano-foundation/CIPs#1101 (draft)](https://github.com/cardano-foundation/CIPs/pull/1101) |
+
+> CIP-169 is in draft until PR [#1101](https://github.com/cardano-foundation/CIPs/pull/1101) is merged. Pin a specific version of this library if you depend on a specific draft revision.
+
+See also: [`docs/architecture.md`](./docs/architecture.md) for design notes, [`docs/examples/`](./docs/examples/) for runnable examples, and [`CHANGELOG.md`](./CHANGELOG.md) for release notes.
 
 ## Install
 
 ```bash
-bun add cardano-governance-metadata
+bun add @amanita-labs/cardano-governance-metadata
 ```
 
 ## Quick Start
@@ -25,7 +29,7 @@ bun add cardano-governance-metadata
 Given any governance metadata URI, `resolve()` will fetch it, detect which CIP standard it conforms to, validate it, verify signatures, and report any extra fields:
 
 ```typescript
-import { resolve } from "cardano-governance-metadata";
+import { resolve } from "@amanita-labs/cardano-governance-metadata";
 
 const result = await resolve(
   "ipfs://QmExampleCid",
@@ -53,7 +57,7 @@ if (result.success) {
 ### Parse a governance metadata document
 
 ```typescript
-import { cip100, detectCipStandard } from "cardano-governance-metadata";
+import { cip100, detectCipStandard } from "@amanita-labs/cardano-governance-metadata";
 
 const json = `{
   "@context": { ... },
@@ -76,7 +80,7 @@ if (result.success) {
 ### Detect which CIP standard a document uses
 
 ```typescript
-import { detectCipStandard, cip108, cip119, cip136 } from "cardano-governance-metadata";
+import { detectCipStandard, cip108, cip119, cip136 } from "@amanita-labs/cardano-governance-metadata";
 
 const doc = JSON.parse(rawJson);
 const standard = detectCipStandard(doc);
@@ -112,7 +116,7 @@ switch (standard) {
 ### Validate a DRep registration (CIP-119)
 
 ```typescript
-import { cip119 } from "cardano-governance-metadata";
+import { cip119 } from "@amanita-labs/cardano-governance-metadata";
 
 const result = cip119.validate({
   "@context": { /* ... */ },
@@ -139,7 +143,7 @@ if (!result.success) {
 ### Validate a governance action (CIP-108)
 
 ```typescript
-import { cip108 } from "cardano-governance-metadata";
+import { cip108 } from "@amanita-labs/cardano-governance-metadata";
 
 const result = cip108.validate({
   "@context": { /* ... */ },
@@ -160,7 +164,7 @@ if (result.success) {
 ### Fetch and verify metadata from a URI
 
 ```typescript
-import { cip100 } from "cardano-governance-metadata";
+import { cip100 } from "@amanita-labs/cardano-governance-metadata";
 
 // Verify against an on-chain anchor hash
 const result = await cip100.verify(
@@ -183,7 +187,7 @@ if (result.success) {
 ### Fetch from IPFS or Arweave
 
 ```typescript
-import { fetchMetadata } from "cardano-governance-metadata";
+import { fetchMetadata } from "@amanita-labs/cardano-governance-metadata";
 
 // IPFS
 const ipfsResult = await fetchMetadata("ipfs://QmXoypizjW3WknFiJnKLwHCnL72vedxjQkDDP1mXWo6uco");
@@ -205,7 +209,7 @@ if (ipfsResult.success) {
 ### Verify a CC vote rationale (CIP-136)
 
 ```typescript
-import { cip136 } from "cardano-governance-metadata";
+import { cip136 } from "@amanita-labs/cardano-governance-metadata";
 
 const result = cip136.parse({
   "@context": { /* ... */ },
@@ -233,35 +237,70 @@ if (result.success) {
 }
 ```
 
-### Verify metadata against an on-chain transaction (CIP-169)
+### CIP-169: bind metadata to its on-chain effect
 
-CIP-169 introduces an optional `body.onChain` property that cryptographically binds metadata to the exact `ProposalProcedure` / `VotingProcedure` / DRep cert it describes — closing metadata-replay and multi-author-misattachment gaps. This library decodes the whole Conway transaction itself (via the Cardano Serialization Library) and self-verifies the binding.
+CIP-169 introduces an optional `body.onChain` property that cryptographically binds metadata to the exact `ProposalProcedure` / `VotingProcedure` / DRep cert it describes — closing metadata-replay and multi-author-misattachment gaps. The library decodes Conway transactions itself (via the Cardano Serialization Library) and self-verifies the binding.
+
+#### Setup: register a CSL build (one-time)
 
 ```typescript
 import * as CSL from "@emurgo/cardano-serialization-lib-nodejs";
-import { resolve, cip169 } from "cardano-governance-metadata";
+import { cip169 } from "@amanita-labs/cardano-governance-metadata";
 
-// One-time at startup. Pick the CSL build that matches your environment:
+// Pick the CSL build that matches your environment:
 //   @emurgo/cardano-serialization-lib-nodejs   (Node)
 //   @emurgo/cardano-serialization-lib-browser  (Browser)
 //   @emurgo/cardano-serialization-lib-asmjs    (universal, slower)
-//   @dcspark/cardano-multiplatform-lib-*        (CML — also accepted)
+//   @dcspark/cardano-multiplatform-lib-*        (CML — also accepted via duck-typing)
 cip169.setCardanoSerializationLib(CSL);
+```
 
-const r = await resolve("ipfs://QmExampleCid");
-if (r.success && r.data.extensions.includes("CIP-169")) {
-  const txCbor = "84a700818258..."; // raw Conway transaction (hex or Uint8Array)
-  const v = await cip169.verifyAgainstTx(r.data.document, txCbor);
+#### 1. Diff two metadata documents (no transaction needed)
 
-  if (v.success && v.data.matched) {
-    console.log("metadata matches on-chain effect", v.data.selectorUsed);
-  } else if (v.success) {
-    console.error("MISMATCH — possible metadata replay", v.data.differences);
-  }
+`compareOnChain` strips self-referential anchors per spec, then deep-equals the two onChain values:
+
+```typescript
+const draftProposal = {
+  deposit: "100000000000",
+  reward_account: "stake1u...",
+  gov_action: { tag: "treasury_withdrawals_action", rewards: [/* ... */] },
+};
+const submittedProposal = { ...draftProposal, anchor: { /* self-anchor — stripped */ } };
+
+const r = cip169.compareOnChain(draftProposal, submittedProposal);
+if (r.success && r.data.equal) console.log("identical");
+else if (r.success) console.error("differences:", r.data.differences);
+```
+
+See the runnable example: [`docs/examples/cip169-compare.ts`](./docs/examples/cip169-compare.ts).
+
+#### 2. Verify against a single-action Conway transaction
+
+```typescript
+const v = await cip169.verifyAgainstTx(metadataDocument, txCborHex);
+if (v.success && v.data.matched) {
+  console.log("matched:", v.data.selectorUsed);
+} else if (v.success) {
+  console.error("mismatch at:", v.data.differences);
 }
 ```
 
-`verifyAgainstTx` decodes only the three transaction-body fields CIP-169 binds (`certs`, `voting_procedures`, `voting_proposals`). Self-referential anchors are stripped per spec. Pass an explicit `selector` (`{ kind: 'proposalProcedure'|'certificate'|'votingProcedures', index? }`) when the transaction contains multiple bound items.
+See the runnable example: [`docs/examples/cip169-verify-tx.ts`](./docs/examples/cip169-verify-tx.ts).
+
+#### 3. Multi-action transactions: select which item to verify against
+
+When a tx carries multiple proposals/certs/voting procedures, pass a `selector`:
+
+```typescript
+const v = await cip169.verifyAgainstTx(metadataDocument, txCborHex, {
+  selector: { kind: "proposalProcedure", index: 1 },  // 0-based
+});
+// kinds: "proposalProcedure" | "certificate" | "votingProcedures"
+// Without index, the library errors with ONCHAIN_SELECTOR_AMBIGUOUS if more
+// than one candidate of the chosen kind exists.
+```
+
+`verifyAgainstTx` decodes only the three transaction-body fields CIP-169 binds (`certs`, `voting_procedures`, `voting_proposals`). Self-referential anchors are stripped per spec.
 
 The lower-level `cip169.compareOnChain(metadataOnChain, alreadyDecodedAction)` and `cip169.decodeConwayTx(txBytes)` are also exported for callers who need to drive each step themselves.
 
@@ -278,7 +317,7 @@ The library bundles every CIP context (CIP-100/108/119/136/169) under both `raw.
 By default, an unknown `@context` URI errors with `MISSING_CONTEXT` rather than silently fetching it (which would make signature verification non-reproducible). To allow other URIs, pass `contextOptions`:
 
 ```typescript
-import { resolve, registerContext } from "cardano-governance-metadata";
+import { resolve, registerContext } from "@amanita-labs/cardano-governance-metadata";
 
 // Option 1: register a context up front (e.g. an Intersect-MBO-hosted schema)
 registerContext(
@@ -304,8 +343,8 @@ await resolve("ipfs://...", { contextOptions: { policy: "fetch" } });
 Import only the CIP module you need for smaller bundles:
 
 ```typescript
-import { parse, validate, verify } from "cardano-governance-metadata/cip119";
-import type { Cip119Document } from "cardano-governance-metadata/cip119";
+import { parse, validate, verify } from "@amanita-labs/cardano-governance-metadata/cip119";
+import type { Cip119Document } from "@amanita-labs/cardano-governance-metadata/cip119";
 ```
 
 Available subpaths: `/cip100`, `/cip108`, `/cip119`, `/cip136`, `/cip169`
@@ -402,7 +441,7 @@ type Result<T, E = Error> =
 Errors include a machine-readable `code` for programmatic matching:
 
 ```typescript
-import { ErrorCode } from "cardano-governance-metadata";
+import { ErrorCode } from "@amanita-labs/cardano-governance-metadata";
 
 const result = cip108.parse(input);
 if (!result.success) {
@@ -416,6 +455,18 @@ if (!result.success) {
   }
 }
 ```
+
+## Troubleshooting
+
+**`CSL_NOT_INITIALIZED`** — A CIP-169 function tried to decode a transaction but no CSL build was registered. Install one of the CSL flavors as a peer dependency and call `cip169.setCardanoSerializationLib(CSL)` once at startup.
+
+**`MISSING_CONTEXT`** when canonicalizing — The document's JSON-LD `@context` URL is neither bundled nor matched by your `contextOptions`. Either register the context up front (`registerContext(url, doc)`), allowlist it (`contextOptions.allowlist`), or — only if you trust the source — set `contextOptions.policy = "fetch"`. The library refuses to fetch unknown contexts by default because doing so would make signature verification non-reproducible.
+
+**`FETCH_TIMEOUT`** / `FETCH_FAILED` — The fetcher hit its timeout (default 30s) or got a non-2xx response. Override with `fetchOptions: { timeout, fetch, ipfsGateway, arweaveGateway, signal }`.
+
+**`ANCHOR_HASH_MISMATCH`** — The blake2b-256 hash of the raw fetched bytes did not match the `anchorHash` you supplied. Common causes: the publisher hashed the document *before* canonicalization; the gateway returned different bytes (e.g. trailing whitespace from a CDN); the on-chain hash was registered against a different version. The anchor hash is over **raw bytes** of the metadata file, not over the canonicalized form.
+
+**Witness `signatureValid: false`** — The author's signature did not match the canonical body hash. Per CIP-100 the signature is over `blake2b256(canonicalize({"@context": ..., body}))`. For `witnessAlgorithm: "ed25519"`, the hex of that hash is what's signed. For `"CIP-8"` / `"CIP-0008"` (COSE_Sign1 envelope), the library decodes the envelope, binds `payload === blake2b256(canonical body)`, then verifies the inner ed25519 signature over the Sig_structure. The signing tool must use the same `@context` mapping the verifier uses. Check `result.witnesses[i].unsupportedReason` for diagnostics on structural failures (malformed CBOR, `hashed: true` payload mode, etc.).
 
 ## License
 
