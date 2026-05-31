@@ -11,38 +11,58 @@
  *
  * Run: bun run docs/examples/context-allowlist.ts
  */
-import { readFileSync } from "node:fs";
-import { registerContext, resolve } from "../../src/index.js";
+import {
+  clearRegisteredContexts,
+  createDocumentLoader,
+  registerContext,
+} from "../../src/index.js";
 
-const MBO_HARD_FORK_CTX_URL =
+const CUSTOM_CTX_URL =
   "https://intersectmbo.github.io/governance-actions/v1.1.0/schemas/hard-fork-initiation/common.jsonld";
 
-// 1. registerContext — best for predictable, repeatable verification.
-// Pre-load the JSON-LD from disk (or your build pipeline) once at startup.
-const localJsonld = JSON.parse(
-  readFileSync("./contexts/intersectmbo-hard-fork-initiation.common.jsonld", "utf8"),
+// In a real app, you'd load the JSON-LD from disk or your build pipeline.
+// Here we inline a tiny context so the example is self-contained.
+const customJsonld = {
+  "@context": {
+    "@vocab": "https://example.com/vocab/",
+    title: "https://example.com/vocab/title",
+  },
+};
+
+// ─── 1. registerContext — predictable, repeatable verification ─────
+clearRegisteredContexts();
+registerContext(CUSTOM_CTX_URL, customJsonld);
+
+const loader1 = createDocumentLoader({ policy: "bundled-only" });
+const r1 = await loader1(CUSTOM_CTX_URL);
+console.log(
+  "registerContext: resolved URL offline =",
+  r1.documentUrl === CUSTOM_CTX_URL,
 );
-registerContext(MBO_HARD_FORK_CTX_URL, localJsonld);
 
-const r1 = await resolve("ipfs://QmExampleCid");
-console.log("registered context — success:", r1.success);
-
-// 2. allowlist — let the library fetch contexts that match the pattern,
-// caching them in memory for the duration of the call. Globs: * = single
-// path segment, ** = multi-segment.
-const r2 = await resolve("ipfs://QmExampleCid", {
-  contextOptions: {
-    policy: "allowlist",
-    allowlist: ["https://intersectmbo.github.io/governance-actions/v*/**"],
-  },
+// ─── 2. allowlist — fetch matching URLs at runtime ─────────────────
+// Globs: * = single path segment, ** = multi-segment.
+const loader2 = createDocumentLoader({
+  policy: "allowlist",
+  allowlist: ["https://intersectmbo.github.io/governance-actions/v*/**"],
+  fetch: (async (url: string | URL | Request) => {
+    const u = typeof url === "string" ? url : url.toString();
+    console.log("  fetched:", u);
+    return new Response(JSON.stringify(customJsonld), {
+      status: 200,
+      headers: { "content-type": "application/json" },
+    });
+  }) as unknown as typeof fetch,
 });
-console.log("allowlist — success:", r2.success);
+const r2 = await loader2(CUSTOM_CTX_URL);
+console.log("allowlist: matched and fetched =", r2.documentUrl === CUSTOM_CTX_URL);
 
-// 3. overrides — one-shot exact-URL injection per call. Useful when you need
-// to pin a specific context version per request.
-const r3 = await resolve("ipfs://QmExampleCid", {
-  contextOptions: {
-    overrides: { [MBO_HARD_FORK_CTX_URL]: localJsonld },
-  },
+// ─── 3. overrides — exact-URL injection per call ───────────────────
+const loader3 = createDocumentLoader({
+  policy: "bundled-only",
+  overrides: { [CUSTOM_CTX_URL]: customJsonld },
 });
-console.log("override — success:", r3.success);
+const r3 = await loader3(CUSTOM_CTX_URL);
+console.log("overrides: returned the override doc =", JSON.stringify(r3.document) === JSON.stringify(customJsonld));
+
+clearRegisteredContexts();
