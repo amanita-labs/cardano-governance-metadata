@@ -41,6 +41,8 @@ export {
 
 export { parse } from "./parse.js";
 export { validate } from "./validate.js";
+export { build, type BuildCip169Output } from "./build.js";
+export * as actions from "./actions.js";
 export { stripSelfAnchor } from "./strip-self-anchor.js";
 export {
 	compareOnChain,

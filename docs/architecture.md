@@ -22,6 +22,12 @@ URI ──► fetch ──► parse ──► detect ──► validate ──�
 | Verify | `cipNNN.verify` | `src/cipNNN/verify.ts` |
 | All-in-one | `resolve` | [`src/resolve.ts`](../src/resolve.ts) |
 
+### Building documents (the inverse of parse)
+
+Each CIP module also exports `build` ([`src/cipNNN/build.ts`](../src)) — the construction-side counterpart to `parse`. It assembles the JSON-LD envelope around a caller-supplied `body`, injecting the canonical `@context` URL (from [`src/core/default-contexts.ts`](../src/core/default-contexts.ts)) and the `hashAlgorithm: "blake2b-256"` default, then runs the result through the *same* Zod schema `validate` uses. This guarantees `build → parse` round-trips and keeps the construction path from drifting from the validation path. Witness signing is deliberately out of scope: `build` only assembles structure, so it has no dependency on canonicalization or CSL.
+
+CIP-169's `build` is shaped differently — it validates a bare `OnChain` payload (proposal procedure / certificate / voting procedures) rather than a full envelope, because CIP-169 nests inside another CIP's `body.onChain`. The companion [`src/cip169/actions.ts`](../src/cip169/actions.ts) provides pure type-narrowed constructors for each Conway `gov_action` / certificate / voter shape — no runtime validation of their own; the assembled payload is validated end-to-end by `build`.
+
 ## Design choices
 
 ### Result types instead of throwing

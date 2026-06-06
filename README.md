@@ -113,6 +113,62 @@ switch (standard) {
 }
 ```
 
+### Build (construct) a document
+
+Each CIP module exports a `build()` factory — the inverse of `parse()`. You supply the `body` (and optionally `authors`); `build()` injects the canonical `@context` URL and `hashAlgorithm: "blake2b-256"`, validates the result against the same schema `validate()` uses, and returns the typed document plus a pretty-printed JSON string. A successful build is guaranteed to round-trip through `parse()`.
+
+```typescript
+import { cip108 } from "@amanita-labs/cardano-governance-metadata";
+
+const result = cip108.build({
+  body: {
+    title: "Increase K parameter to 1000",
+    abstract: "Raise the desired number of pools...",
+    motivation: "Greater decentralization...",
+    rationale: "Simulations show...",
+  },
+  // authors, context, hashAlgorithm are all optional
+});
+
+if (result.success) {
+  const { doc, json } = result.data;  // doc: typed Cip108Document, json: string
+  console.log(json);                  // ready to publish (IPFS/Arweave/HTTPS)
+}
+```
+
+`@context` and `hashAlgorithm` are overridable per call (`build({ body, context, hashAlgorithm })`). Witnesses are out of scope — callers compose `authors[]` themselves, with or without populated witnesses. The same shape works for `cip100.build`, `cip119.build`, and `cip136.build`.
+
+#### Build a CIP-169 on-chain payload
+
+`cip169.build` validates an `OnChain` payload (a proposal procedure, certificate, or voting-procedures array) and returns `{ payload, json }`. Use the `cip169.actions` helpers to construct the inner `gov_action` / certificate / voter values without hand-writing tags, then nest the payload under any base CIP's `body.onChain`:
+
+```typescript
+import { cip108, cip169 } from "@amanita-labs/cardano-governance-metadata";
+
+const onChain = cip169.build({
+  deposit: "100000000000",
+  reward_account: "stake1u...",
+  gov_action: cip169.actions.treasuryWithdrawals({
+    rewards: [{ key: "stake1u...", value: "1000000" }],
+  }),
+});
+
+if (onChain.success) {
+  // Nest the validated payload into a full CIP-108 document
+  const doc = cip108.build({
+    body: {
+      title: "Treasury withdrawal request",
+      abstract: "Withdraw 1 ADA from the treasury.",
+      motivation: "...",
+      rationale: "...",
+      onChain: onChain.data.payload,
+    },
+  });
+}
+```
+
+Action helpers cover every Conway governance action and the no-anchor certificate/voting shapes: `infoAction`, `parameterChange`, `hardForkInitiation`, `treasuryWithdrawals`, `noConfidence`, `updateCommittee`, `newConstitution`, `registerDrep`, `updateDrep`, `resignCommitteeCold`, and `votingProcedures`. They are pure type-narrowed constructors — validation happens when `cip169.build` (or the enclosing `cipNNN.build`) checks the assembled payload.
+
 ### Validate a DRep registration (CIP-119)
 
 ```typescript
@@ -351,7 +407,26 @@ Available subpaths: `/cip100`, `/cip108`, `/cip119`, `/cip136`, `/cip169`
 
 ## API
 
-Every CIP module exports the same three functions:
+Every CIP module exports the same core functions:
+
+### `build(input)`
+
+Construct a document from a `body` (the inverse of `parse`). Injects the canonical `@context` URL and `hashAlgorithm` default, validates against the CIP schema, and returns the typed document plus a pretty-printed JSON string.
+
+```typescript
+// CIP-100/108/119/136
+build(input: {
+  body: CipBody;
+  authors?: Author[];
+  context?: unknown;            // defaults to the canonical CIP @context URL
+  hashAlgorithm?: HashAlgorithm; // defaults to "blake2b-256"
+}): Result<{ doc: CipDocument; json: string }>
+
+// CIP-169 (validates an OnChain payload to nest under body.onChain)
+cip169.build(input: OnChain): Result<{ payload: OnChain; json: string }>
+```
+
+CIP-169 also exports `cip169.actions` — pure type-narrowed factories for the inner `gov_action` / certificate / voter values.
 
 ### `parse(input, options?)`
 
