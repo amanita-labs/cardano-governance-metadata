@@ -6,6 +6,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## [0.1.1] - 2026-06-07
+
 ### Fixed
 
 - **CIP-8 / COSE_Sign1 witnesses now verify end-to-end.** CIP-100 metadata may carry witnesses with `witnessAlgorithm: "CIP-8"` / `"CIP-0008"` (a COSE_Sign1 envelope from CIP-8 Cardano Message Signing). Previously these were schema-rejected; then schema-accepted but reported as `signatureValid: false`. `cip100.verify` now CBOR-decodes the COSE_Sign1, binds the payload to `blake2b256(canonical body)`, reconstructs the Sig_structure per RFC 8152, and verifies the inner ed25519 signature. Validated against EMURGO's real mainnet witness on `emurgo-sponsorship` — every multi-author Intersect treasury proposal now verifies cleanly with no consumer-side setup. Implemented with `cbor2` (111 KB hard dep), no peer-dep dance.
