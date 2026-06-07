@@ -5,6 +5,10 @@ import {
 	buildDrepRegistrationTx,
 	buildTreasuryWithdrawalTx,
 } from "./fixtures/build-tx.js";
+import {
+	REAL_PARAM_CHANGE_PROPOSAL,
+	REAL_PARAM_CHANGE_TX_HEX,
+} from "./fixtures/real-param-change-tx.js";
 
 beforeAll(() => {
 	setCardanoSerializationLib(CSL);
@@ -120,6 +124,71 @@ describe("cip169.verifyAgainstTx", () => {
 		if (!r.success) return;
 		expect(r.data.matched).toBe(true);
 		expect(r.data.selectorUsed.kind).toBe("certificate");
+	});
+
+	test("matches a real parameter_change_action binding (committee_min_size)", async () => {
+		// The metadata uses the CIP-116 field name (`committee_min_size`) and
+		// serializes the value as a string ("5"), while CSL decodes the action
+		// under its own vocabulary (`min_committee_size: 5`). A faithful binding
+		// must still match.
+		const metadata = {
+			hashAlgorithm: "blake2b-256",
+			body: {
+				title: "Reduce committeeMinSize from 7 to 5",
+				abstract: "...",
+				motivation: "...",
+				rationale: "...",
+				onChain: {
+					deposit: REAL_PARAM_CHANGE_PROPOSAL.deposit,
+					reward_account: REAL_PARAM_CHANGE_PROPOSAL.reward_account,
+					gov_action: {
+						tag: "parameter_change_action",
+						protocol_param_update: { committee_min_size: "5" },
+						gov_action_id: REAL_PARAM_CHANGE_PROPOSAL.govActionId,
+						policy_hash: REAL_PARAM_CHANGE_PROPOSAL.policyHash,
+					},
+				},
+			},
+		};
+
+		const r = await verifyAgainstTx(metadata, REAL_PARAM_CHANGE_TX_HEX);
+		expect(r.success).toBe(true);
+		if (!r.success) return;
+		if (!r.data.matched) {
+			throw new Error(
+				`expected match, got differences: ${JSON.stringify(r.data.differences, null, 2)}`,
+			);
+		}
+		expect(r.data.matched).toBe(true);
+		expect(r.data.selectorUsed.kind).toBe("proposalProcedure");
+	});
+
+	test("flags a parameter_change_action that changes a different value", async () => {
+		const metadata = {
+			hashAlgorithm: "blake2b-256",
+			body: {
+				onChain: {
+					deposit: REAL_PARAM_CHANGE_PROPOSAL.deposit,
+					reward_account: REAL_PARAM_CHANGE_PROPOSAL.reward_account,
+					gov_action: {
+						tag: "parameter_change_action",
+						// real action sets committee_min_size to 5, not 7
+						protocol_param_update: { committee_min_size: "7" },
+						gov_action_id: REAL_PARAM_CHANGE_PROPOSAL.govActionId,
+						policy_hash: REAL_PARAM_CHANGE_PROPOSAL.policyHash,
+					},
+				},
+			},
+		};
+
+		const r = await verifyAgainstTx(metadata, REAL_PARAM_CHANGE_TX_HEX);
+		expect(r.success).toBe(true);
+		if (!r.success) return;
+		expect(r.data.matched).toBe(false);
+		if (r.data.matched) return;
+		expect(
+			r.data.differences.some((d) => d.path.includes("committee_min_size")),
+		).toBe(true);
 	});
 
 	test("errors when metadata has no body.onChain", async () => {

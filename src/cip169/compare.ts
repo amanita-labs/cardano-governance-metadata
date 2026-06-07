@@ -278,6 +278,24 @@ function isObject(v: unknown): v is Record<string, unknown> {
 	return typeof v === "object" && v !== null && !Array.isArray(v);
 }
 
+/**
+ * Many on-chain numeric quantities (uint protocol params, epochs, indices) may
+ * be serialized as a JSON number on one side and a decimal string on the other
+ * — CIP-116 admits both spellings for metadata authors, while the CSL decode
+ * yields numbers. Reconcile only the mixed number/string case; string/string
+ * and number/number are left to exact comparison so two distinct large
+ * integers can never round to a false match.
+ */
+function numericEqual(a: unknown, b: unknown): boolean {
+	const aIsNum = typeof a === "number";
+	const bIsNum = typeof b === "number";
+	if (aIsNum === bIsNum) return false;
+	const num = (aIsNum ? a : b) as number;
+	const str = aIsNum ? b : a;
+	if (typeof str !== "string" || str.trim() === "") return false;
+	return Number.isFinite(num) && Number(str) === num;
+}
+
 function diff(
 	a: unknown,
 	b: unknown,
@@ -285,6 +303,7 @@ function diff(
 	out: OnChainDifference[],
 ): void {
 	if (a === b) return;
+	if (numericEqual(a, b)) return;
 	if (typeof a !== typeof b) {
 		out.push({ path, metadataValue: a, actionValue: b });
 		return;
