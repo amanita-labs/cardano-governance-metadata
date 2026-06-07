@@ -30,7 +30,12 @@ export {
   // COSE / CIP-8 witness inspection
   decodeCoseSign1,
   verifyCip8Witness,
-  // Errors
+} from "@amanita-labs/cardano-governance-metadata";
+
+// Error types are re-exported type-only: the demo surfaces errors structurally
+// (see IssueList) and never constructs or `instanceof`-checks them, so it must
+// not depend on these runtime values surviving the library's tree-shaking.
+export type {
   ErrorCode,
   GovernanceMetadataError,
   FetchError,
