@@ -1,0 +1,77 @@
+name: Deploy demo to GitHub Pages
+
+on:
+  push:
+    # `main` is the production source. `demo-app` is included so the
+    # work-in-progress demo can be previewed before it's merged — remove it
+    # from this list once the demo lands on main.
+    branches: [main, demo-app]
+  workflow_dispatch:
+
+# Least-privilege token plus the OIDC/pages scopes the deploy step needs.
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# Only one Pages deployment at a time; newer pushes supersede in-flight runs.
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # ── Build the library (the demo consumes its built dist/ via file:..) ──
+      # Pinned: bun 1.3.x regressed `bun build` on this re-export-heavy entry,
+      # emitting a stub dist/index.js whose exports reference undefined names
+      # (cip100, ErrorCode, …). 1.2.13 produces a correct self-contained bundle.
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.2.13
+
+      - name: Install library deps
+        run: bun install --frozen-lockfile
+
+      - name: Build library
+        # `bun run build` self-verifies the dist via its check:dist step, so a
+        # broken bundle fails here with a clear message rather than as a cryptic
+        # Rollup error in the demo build below.
+        run: bun run build
+
+      # ── Build the demo (static SPA) ───────────────────────────────────────
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install demo deps
+        working-directory: demo
+        run: npm ci
+
+      - name: Build demo
+        working-directory: demo
+        # Project Pages serve under /<repo>/, so asset URLs need that base.
+        # Passed only here — local `npm run dev` / `build` stay at "/".
+        run: npm run build -- --base=/governance-metadata/
+
+      - name: Disable Jekyll processing
+        run: touch demo/dist/.nojekyll
+
+      - uses: actions/configure-pages@v5
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: demo/dist
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
