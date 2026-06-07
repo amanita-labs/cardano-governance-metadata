@@ -791,3 +791,56 @@ table.diff td.b {
     animation: none;
   }
 }
+
+/* ── Markdown importer (CIP-108 authoring) ─────────────────────────────── */
+.importer {
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--ink-850);
+  padding: 12px 14px;
+}
+.importer > summary {
+  cursor: pointer;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--brass);
+  list-style: none;
+}
+.importer > summary::-webkit-details-marker {
+  display: none;
+}
+.importer > summary::before {
+  content: "+ ";
+  color: var(--paper-faint);
+}
+.importer[open] > summary::before {
+  content: "− ";
+}
+
+/* ── References editor (CIP-108) ───────────────────────────────────────── */
+.ref-row {
+  display: grid;
+  grid-template-columns: 150px 1fr 1.4fr 1.2fr auto;
+  gap: 8px;
+  align-items: center;
+}
+@media (max-width: 720px) {
+  .ref-row {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+/* ── @context control (Generate) ───────────────────────────────────────── */
+.ctx-control {
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--ink-850);
+  padding: 14px 16px;
+  margin-bottom: 20px;
+}
+.ctx-control .pill-group button {
+  font-size: 12px;
+  padding: 5px 12px;
+}

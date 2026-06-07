@@ -59,4 +59,6 @@ export type {
   Author,
   Witness,
   ContextResolutionOptions,
+  ReferenceType,
+  HashedReference,
 } from "@amanita-labs/cardano-governance-metadata";

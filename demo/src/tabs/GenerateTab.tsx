@@ -1,12 +1,14 @@
 import { useMemo, useState } from "react";
-import { cip100, cip108, cip119, cip136, cip169 } from "../lib";
+import { cip100, cip108, cip119, cip136, cip169, createDocumentLoader } from "../lib";
 import type {
   Cip169Credential,
   GovAction,
   GovernanceMetadataError,
+  HashedReference,
   OnChain,
   Result,
 } from "../lib";
+import { parseProposalMarkdown, type ParsedReference } from "../markdown";
 import { Field } from "../components/Field";
 import { JsonView } from "../components/JsonView";
 import { IssueList } from "../components/IssueList";
@@ -48,6 +50,34 @@ const PROPOSAL_ACTIONS: EffectKind[] = [
   "new_constitution",
 ];
 
+// ── @context sources ─────────────────────────────────────────────────────
+// The library injects these canonical CIP URLs by default (mirrors
+// src/core/default-contexts.ts); they're also the URLs it resolves offline.
+const LIBRARY_CONTEXT_URL: Record<Std, string> = {
+  "CIP-100": "https://raw.githubusercontent.com/cardano-foundation/CIPs/master/CIP-0100/cip-0100.common.jsonld",
+  "CIP-108": "https://raw.githubusercontent.com/cardano-foundation/CIPs/master/CIP-0108/cip-0108.common.jsonld",
+  "CIP-119": "https://raw.githubusercontent.com/cardano-foundation/CIPs/master/CIP-0119/cip-0119.common.jsonld",
+  "CIP-136": "https://raw.githubusercontent.com/cardano-foundation/CIPs/master/CIP-0136/cip-0136.common.jsonld",
+};
+
+// Intersect-hosted governance-action schemas — the exact URLs IntersectMBO's
+// metadata-create.sh selects per action type.
+const INTERSECT_BASE = "https://intersectmbo.github.io/governance-actions/v1.0.0/schemas";
+const INTERSECT_PATH: Partial<Record<EffectKind, string>> = {
+  info_action: "info",
+  treasury_withdrawals_action: "treasury-withdrawals",
+  parameter_change_action: "parameter-changes",
+  hard_fork_initiation_action: "hard-fork-initiation",
+  update_committee: "update-committee",
+};
+function intersectUrlFor(effect: EffectKind): string {
+  const path = INTERSECT_PATH[effect] ?? "info";
+  return `${INTERSECT_BASE}/${path}/common.jsonld`;
+}
+
+type CtxMode = "url" | "inline";
+type CtxSource = "library" | "intersect" | "custom";
+
 function jsonError(e: unknown, field: string): GovernanceMetadataError {
   return {
     code: "INVALID_JSON",
@@ -70,6 +100,10 @@ export function GenerateTab() {
   const [rationale, setRationale] = useState(
     "On-chain reports remove ambiguity and build trust.",
   );
+  const [references, setReferences] = useState<ParsedReference[]>([]);
+  // Markdown importer (CIP-108 authoring format, à la metadata-create.sh)
+  const [markdown, setMarkdown] = useState("");
+  const [importNote, setImportNote] = useState<string | null>(null);
 
   // CIP-100
   const [comment, setComment] = useState("Signed off by the working group.");
@@ -92,6 +126,15 @@ export function GenerateTab() {
 
   // Author (name only — witnesses require signing, out of scope for build())
   const [authorName, setAuthorName] = useState("");
+
+  // @context — URL reference vs inline object, from a chosen source.
+  const [ctxMode, setCtxMode] = useState<CtxMode>("url");
+  const [ctxSource, setCtxSource] = useState<CtxSource>("library");
+  const [ctxCustomUrl, setCtxCustomUrl] = useState("");
+  const [inlineCtx, setInlineCtx] = useState<unknown | null>(null);
+  const [ctxStatus, setCtxStatus] = useState<React.ReactNode>(null);
+  const [ctxBusy, setCtxBusy] = useState(false);
+  const [inlineCtxUrl, setInlineCtxUrl] = useState<string | null>(null);
 
   // CIP-169 on-chain effect
   const [effect, setEffect] = useState<EffectKind>("none");
@@ -159,6 +202,97 @@ export function GenerateTab() {
       2,
     ),
   );
+
+  function importMarkdown() {
+    const p = parseProposalMarkdown(markdown);
+    const filled: string[] = [];
+    if (p.title) { setTitle(p.title); filled.push("title"); }
+    if (p.abstract) { setAbstract(p.abstract); filled.push("abstract"); }
+    if (p.motivation) { setMotivation(p.motivation); filled.push("motivation"); }
+    if (p.rationale) { setRationale(p.rationale); filled.push("rationale"); }
+    setReferences(p.references);
+    if (p.references.length) filled.push(`${p.references.length} reference${p.references.length === 1 ? "" : "s"}`);
+    setStd("CIP-108");
+    setImportNote(
+      filled.length ? `Imported ${filled.join(", ")}.` : "No ## Title/Abstract/Motivation/Rationale/References sections found.",
+    );
+  }
+
+  // The @context URL implied by the current source / standard / action.
+  const effectiveContextUrl =
+    ctxSource === "custom"
+      ? ctxCustomUrl.trim()
+      : ctxSource === "intersect"
+        ? intersectUrlFor(effect)
+        : LIBRARY_CONTEXT_URL[std];
+
+  function invalidateInline() {
+    setInlineCtx(null);
+    setInlineCtxUrl(null);
+    setCtxStatus(null);
+  }
+
+  async function resolveInlineContext() {
+    const url = effectiveContextUrl;
+    if (!url) {
+      setCtxStatus(
+        <div className="issue">
+          <span className="path">context</span>
+          <span className="msg">Enter a context URL first.</span>
+        </div>,
+      );
+      return;
+    }
+    setCtxBusy(true);
+    setCtxStatus(null);
+    try {
+      let ctxObj: unknown;
+      let origin: string;
+      try {
+        // Bundled CIP contexts resolve offline through the library's loader.
+        const loader = createDocumentLoader({ policy: "bundled-only" });
+        const remote = await loader(url);
+        ctxObj = (remote.document as { "@context"?: unknown })["@context"] ?? remote.document;
+        origin = "resolved offline (bundled)";
+      } catch {
+        // Not bundled (e.g. the Intersect schemas) — fetch it, exactly like the
+        // script's `curl … | jq '."@context"'`.
+        const resp = await fetch(url);
+        if (!resp.ok) throw new Error(`HTTP ${resp.status} ${resp.statusText}`);
+        const doc = (await resp.json()) as { "@context"?: unknown };
+        ctxObj = doc?.["@context"] ?? doc;
+        origin = "fetched from network";
+      }
+      const keys =
+        ctxObj && typeof ctxObj === "object" ? Object.keys(ctxObj as object).length : 0;
+      setInlineCtx(ctxObj);
+      setInlineCtxUrl(url);
+      setCtxStatus(
+        <ResultBadge tone="valid">{origin} — {keys} keys inlined</ResultBadge>,
+      );
+    } catch (e) {
+      setInlineCtx(null);
+      setInlineCtxUrl(null);
+      setCtxStatus(
+        <div className="issue">
+          <span className="path">context</span>
+          <span className="msg">{(e as Error).message}</span>
+        </div>,
+      );
+    } finally {
+      setCtxBusy(false);
+    }
+  }
+
+  function updateRef(i: number, patch: Partial<ParsedReference>) {
+    setReferences((rs) => rs.map((r, j) => (j === i ? { ...r, ...patch } : r)));
+  }
+  function addRef() {
+    setReferences((rs) => [...rs, { type: "Other", label: "", uri: "", hashDigest: "" }]);
+  }
+  function removeRef(i: number) {
+    setReferences((rs) => rs.filter((_, j) => j !== i));
+  }
 
   const built = useMemo<
     | { ok: true; json: string; roundtrips: boolean }
@@ -241,7 +375,13 @@ export function GenerateTab() {
       onChain = payload.data.payload;
     }
 
-    // 2) Assemble the body for the chosen standard.
+    // 2) Resolve the document @context: an inline object once resolved for the
+    // current URL, otherwise the URL string itself (build() defaults to it too).
+    const inlineReady =
+      ctxMode === "inline" && inlineCtx !== null && inlineCtxUrl === effectiveContextUrl;
+    const contextValue: unknown = inlineReady ? inlineCtx : effectiveContextUrl || undefined;
+
+    // 3) Assemble the body for the chosen standard.
     const authors = authorName.trim()
       ? [{ name: authorName.trim() }]
       : undefined;
@@ -252,20 +392,39 @@ export function GenerateTab() {
         result = cip100.build({
           body: { comment, ...(onChain ? { onChain } : {}) },
           authors,
+          context: contextValue,
         });
         break;
-      case "CIP-108":
+      case "CIP-108": {
+        const refs: HashedReference[] = references
+          .filter((r) => r.label.trim() && r.uri.trim())
+          .map((r) => ({
+            "@type": r.type,
+            label: r.label.trim(),
+            uri: r.uri.trim(),
+            ...(r.hashDigest.trim()
+              ? {
+                  referenceHash: {
+                    hashDigest: r.hashDigest.trim(),
+                    hashAlgorithm: "blake2b-256",
+                  },
+                }
+              : {}),
+          }));
         result = cip108.build({
           body: {
             title,
             abstract,
             motivation,
             rationale,
+            ...(refs.length ? { references: refs } : {}),
             ...(onChain ? { onChain } : {}),
           },
           authors,
+          context: contextValue,
         });
         break;
+      }
       case "CIP-119":
         result = cip119.build({
           body: {
@@ -277,6 +436,7 @@ export function GenerateTab() {
             ...(onChain ? { onChain } : {}),
           },
           authors,
+          context: contextValue,
         });
         break;
       case "CIP-136": {
@@ -295,6 +455,7 @@ export function GenerateTab() {
             ...(onChain ? { onChain } : {}),
           },
           authors,
+          context: contextValue,
         });
         break;
       }
@@ -307,15 +468,18 @@ export function GenerateTab() {
     const roundtrips = mod.parse(result.data.json).success;
     return { ok: true, json: result.data.json, roundtrips };
   }, [
-    std, title, abstract, motivation, rationale, comment, givenName, objectives,
+    std, title, abstract, motivation, rationale, references, comment, givenName, objectives,
     motivations, qualifications, paymentAddress, summary, rationaleStatement,
     constitutional, unconstitutional, abstainCount, authorName, effect, deposit,
     rewardAccount, paramUpdate, hfMajor, hfMinor, withdrawKey, withdrawValue,
     ucNum, ucDen, ucCommittee, ucRemove, constitutionJson, drepTag, drepValue,
     drepCoin, ccTag, ccValue, votesJson,
+    ctxMode, inlineCtx, inlineCtxUrl, effectiveContextUrl,
   ]);
 
   const isProposal = PROPOSAL_ACTIONS.includes(effect);
+  const inlineActive =
+    ctxMode === "inline" && inlineCtx !== null && inlineCtxUrl === effectiveContextUrl;
 
   return (
     <>
@@ -344,6 +508,68 @@ export function GenerateTab() {
         </div>
         <p className="hint" style={{ marginTop: -8 }}>{STD_INFO[std]}</p>
 
+        <div className="ctx-control">
+          <div className="row" style={{ justifyContent: "space-between", alignItems: "center" }}>
+            <span className="section-label" style={{ margin: 0 }}>
+              @context
+            </span>
+            <div className="pill-group">
+              <button aria-pressed={ctxMode === "url"} onClick={() => { setCtxMode("url"); setCtxStatus(null); }}>
+                URL reference
+              </button>
+              <button aria-pressed={ctxMode === "inline"} onClick={() => setCtxMode("inline")}>
+                Inline object
+              </button>
+            </div>
+          </div>
+
+          <div className="row" style={{ marginTop: 10, alignItems: "flex-end" }}>
+            <label className="field" style={{ minWidth: 260 }}>
+              <span className="field-label">source</span>
+              <select
+                value={ctxSource}
+                onChange={(e) => { setCtxSource(e.target.value as CtxSource); invalidateInline(); }}
+              >
+                <option value="library">CIP default (bundled · offline)</option>
+                <option value="intersect">Intersect governance-actions (metadata-create.sh)</option>
+                <option value="custom">Custom URL…</option>
+              </select>
+            </label>
+            {ctxSource === "custom" && (
+              <div style={{ flex: 1 }}>
+                <Field
+                  label="context URL"
+                  value={ctxCustomUrl}
+                  onChange={(v) => { setCtxCustomUrl(v); invalidateInline(); }}
+                  mono
+                />
+              </div>
+            )}
+          </div>
+
+          <div className="kvline" style={{ marginTop: 10 }}>
+            <span className="k">{inlineActive ? "inlined from" : "resolves to"}</span>
+            <span className="mono-chip" style={{ border: "none", background: "none", padding: 0, wordBreak: "break-all" }}>
+              {effectiveContextUrl || "—"}
+            </span>
+          </div>
+
+          {ctxMode === "inline" && (
+            <div className="row" style={{ marginTop: 10, alignItems: "center" }}>
+              <button className="btn" onClick={resolveInlineContext} disabled={ctxBusy || !effectiveContextUrl}>
+                {ctxBusy ? <span className="spinner" /> : "Resolve & inline"}
+              </button>
+              {!inlineActive && (
+                <span className="hint" style={{ margin: 0 }}>
+                  Embeds the <code>@context</code> object (bundled offline, else fetched like the
+                  script's <code>curl</code>). Until resolved, the URL is used.
+                </span>
+              )}
+            </div>
+          )}
+          {ctxStatus && <div style={{ marginTop: 8 }}>{ctxStatus}</div>}
+        </div>
+
         <div className="cols">
           <div className="stack">
             {std === "CIP-100" && (
@@ -352,10 +578,40 @@ export function GenerateTab() {
 
             {std === "CIP-108" && (
               <>
+                <details className="importer">
+                  <summary>Import from Markdown</summary>
+                  <p className="hint" style={{ marginTop: 8 }}>
+                    Paste a proposal in the{" "}
+                    <code>metadata-create.sh</code> authoring format —{" "}
+                    <code>## Title</code> / <code>## Abstract</code> /{" "}
+                    <code>## Motivation</code> / <code>## Rationale</code>{" "}
+                    sections, plus <code>## References</code> as{" "}
+                    <code>* [label](url)</code> bullets.
+                  </p>
+                  <textarea
+                    className="mono"
+                    rows={8}
+                    value={markdown}
+                    onChange={(e) => setMarkdown(e.target.value)}
+                    placeholder={"## Title\nIncrease Treasury Transparency\n\n## Abstract\n…\n\n## References\n* [CIP-1694](https://cips.cardano.org/cip/CIP-1694)"}
+                  />
+                  <div className="row" style={{ marginTop: 10 }}>
+                    <button className="btn primary" onClick={importMarkdown} disabled={!markdown.trim()}>
+                      Import sections
+                    </button>
+                    {importNote && <span className="hint" style={{ margin: 0 }}>{importNote}</span>}
+                  </div>
+                </details>
                 <Field label="title" value={title} onChange={setTitle} maxLength={80} />
                 <Field label="abstract" value={abstract} onChange={setAbstract} maxLength={2500} textarea />
                 <Field label="motivation" value={motivation} onChange={setMotivation} textarea />
                 <Field label="rationale" value={rationale} onChange={setRationale} textarea />
+                <ReferencesEditor
+                  references={references}
+                  onUpdate={updateRef}
+                  onAdd={addRef}
+                  onRemove={removeRef}
+                />
               </>
             )}
 
@@ -505,6 +761,72 @@ export function GenerateTab() {
         )}
       </section>
     </>
+  );
+}
+
+/** CIP-108 `references` editor — a list of typed { label, uri } links. */
+function ReferencesEditor({
+  references,
+  onUpdate,
+  onAdd,
+  onRemove,
+}: {
+  references: ParsedReference[];
+  onUpdate: (i: number, patch: Partial<ParsedReference>) => void;
+  onAdd: () => void;
+  onRemove: (i: number) => void;
+}) {
+  return (
+    <div className="stack">
+      <div className="row" style={{ justifyContent: "space-between" }}>
+        <span className="section-label" style={{ margin: 0 }}>
+          references (optional)
+        </span>
+        <button className="btn tiny ghost" onClick={onAdd}>
+          + add reference
+        </button>
+      </div>
+      {references.length === 0 ? (
+        <p className="hint" style={{ marginTop: -4 }}>
+          None — add links to supporting material, or import them from Markdown.
+        </p>
+      ) : (
+        references.map((r, i) => (
+          <div className="ref-row" key={i}>
+            <select
+              value={r.type}
+              onChange={(e) => onUpdate(i, { type: e.target.value as ParsedReference["type"] })}
+            >
+              <option value="Other">Other</option>
+              <option value="GovernanceMetadata">GovernanceMetadata</option>
+            </select>
+            <input
+              type="text"
+              placeholder="label"
+              value={r.label}
+              onChange={(e) => onUpdate(i, { label: e.target.value })}
+            />
+            <input
+              type="text"
+              className="mono"
+              placeholder="https://… or ipfs://…"
+              value={r.uri}
+              onChange={(e) => onUpdate(i, { uri: e.target.value })}
+            />
+            <input
+              type="text"
+              className="mono"
+              placeholder="referenceHash hex (optional)"
+              value={r.hashDigest}
+              onChange={(e) => onUpdate(i, { hashDigest: e.target.value })}
+            />
+            <button className="btn tiny ghost" onClick={() => onRemove(i)} title="remove">
+              ×
+            </button>
+          </div>
+        ))
+      )}
+    </div>
   );
 }
 
