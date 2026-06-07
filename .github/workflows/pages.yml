@@ -54,8 +54,10 @@ jobs:
       - name: Build demo
         working-directory: demo
         # Project Pages serve under /<repo>/, so asset URLs need that base.
-        # Passed only here — local `npm run dev` / `build` stay at "/".
-        run: npm run build -- --base=/governance-metadata/
+        # The repo is amanita-labs/cardano-governance-metadata (the local
+        # `governance-metadata` remote 301-redirects to it). Passed only here —
+        # local `npm run dev` / `build` stay at "/".
+        run: npm run build -- --base=/cardano-governance-metadata/
 
       - name: Disable Jekyll processing
         run: touch demo/dist/.nojekyll
