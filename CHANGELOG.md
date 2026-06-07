@@ -6,6 +6,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## [0.1.2] - 2026-06-07
+
 ### Fixed
 
 - **CIP-169 `parameter_change_action` bindings no longer report false mismatches.** `verifyAgainstTx` decoded the on-chain action with CSL's `ProtocolParamUpdate.to_json()`, which emits the *full* parameter struct (every unset field as `null`) under **CSL's** field names, while CIP-116 metadata documents carry only the changed parameters under **CIP-116** names. A faithful binding (e.g. `{ committee_min_size: "5" }` vs the decoded `{ min_committee_size: 5, …32 nulls }`) diffed as ~34 spurious differences. The encoder now produces a sparse, CIP-116-shaped `protocol_param_update`: unset fields are dropped and the six fields whose CSL name diverges are renamed (`min_committee_size`→`committee_min_size`, `committee_term_limit`→`committee_max_term_length`, `governance_action_validity_period`→`gov_action_lifetime`, `governance_action_deposit`→`gov_action_deposit`, `drep_inactivity_period`→`drep_activity`, `ref_script_coins_per_byte`→`min_fee_ref_script_cost_per_byte`). `compareOnChain` additionally treats a JSON number and its decimal-string spelling as equal (e.g. metadata `"5"` vs decoded `5`) for any numeric field, not just `gov_action_index`. Comparison remains a full structural match (not a subset assertion), so a transaction that changes *more* parameters than the metadata declares is still correctly flagged. Verified against the real mainnet "reduce committeeMinSize 7→5" proposal.
