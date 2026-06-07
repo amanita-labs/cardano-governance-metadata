@@ -39,7 +39,14 @@ export {
   VerificationError,
 } from "@amanita-labs/cardano-governance-metadata";
 
-export type { OnChain } from "@amanita-labs/cardano-governance-metadata/cip169";
+export type {
+  OnChain,
+  GovAction,
+  Credential as Cip169Credential,
+  CommitteeMember,
+  Constitution,
+  VotingProceduresNoAnchor,
+} from "@amanita-labs/cardano-governance-metadata/cip169";
 
 export type {
   CipStandard,

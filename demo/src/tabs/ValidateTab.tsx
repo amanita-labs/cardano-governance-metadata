@@ -5,6 +5,7 @@ import {
   cip119,
   cip136,
   detectCipStandard,
+  fetchMetadata,
   resolve,
 } from "../lib";
 import type {
@@ -46,6 +47,7 @@ export function ValidateTab() {
   const [uri, setUri] = useState("");
   const [report, setReport] = useState<Report | null>(null);
   const [busy, setBusy] = useState(false);
+  const [fetchNote, setFetchNote] = useState<React.ReactNode>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
   function loadSample(json: string) {
@@ -94,6 +96,37 @@ export function ValidateTab() {
       );
 
       setReport({ kind: "offline", standard, validate, verify });
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function fetchRaw() {
+    if (!uri.trim()) return;
+    setBusy(true);
+    setFetchNote(null);
+    try {
+      // The low-level fetch layer beneath resolve(): returns raw bytes so a
+      // caller can hash them for the on-chain anchor before parsing. Here we
+      // drop the decoded text into the editor to validate it offline.
+      const r = await fetchMetadata(uri.trim());
+      if (!r.success) {
+        setFetchNote(
+          <div className="issue">
+            <span className="path">{r.error.code}</span>
+            <span className="msg">{r.error.message}</span>
+          </div>,
+        );
+        return;
+      }
+      const text = new TextDecoder().decode(r.data);
+      setRaw(text);
+      setReport(null);
+      setFetchNote(
+        <ResultBadge tone="valid">
+          fetched {r.data.length} bytes → loaded into the editor
+        </ResultBadge>,
+      );
     } finally {
       setBusy(false);
     }
@@ -212,6 +245,14 @@ export function ValidateTab() {
             onChange={(e) => setUri(e.target.value)}
           />
           <button
+            className="btn ghost"
+            onClick={fetchRaw}
+            disabled={busy || !uri.trim()}
+            title="fetchMetadata() — fetch raw bytes only, then validate offline"
+          >
+            fetch raw
+          </button>
+          <button
             className="btn"
             onClick={runOnline}
             disabled={busy || !uri.trim()}
@@ -219,6 +260,7 @@ export function ValidateTab() {
             resolve()
           </button>
         </div>
+        {fetchNote && <div style={{ marginTop: 10 }}>{fetchNote}</div>}
       </section>
 
       {report && (
