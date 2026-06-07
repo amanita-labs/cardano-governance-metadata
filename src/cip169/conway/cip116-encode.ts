@@ -119,10 +119,9 @@ export function encodeGovAction(govAction: CslValue): GovAction {
 			const ph = a.policy_hash();
 			return {
 				tag: "parameter_change_action",
-				protocol_param_update: cslToJson(a.protocol_param_updates()) as Record<
-					string,
-					unknown
-				>,
+				protocol_param_update: encodeProtocolParamUpdate(
+					a.protocol_param_updates(),
+				),
 				...(id ? { gov_action_id: encodeGovActionId(id) } : {}),
 				...(ph ? { policy_hash: ph.to_hex() } : {}),
 			};
@@ -213,6 +212,47 @@ export function encodeGovAction(govAction: CslValue): GovAction {
 				`Unknown GovernanceActionKind ${kind} — CIP-0169 does not define an encoding for this variant.`,
 			);
 	}
+}
+
+/**
+ * The few `protocol_param_update` fields whose CSL `to_json()` name differs
+ * from the CIP-116 (Conway) name. All other fields share the same name in
+ * both vocabularies. Keyed by CSL name → CIP-116 name.
+ */
+const PPU_CSL_TO_CIP116: Readonly<Record<string, string>> = {
+	min_committee_size: "committee_min_size",
+	committee_term_limit: "committee_max_term_length",
+	governance_action_validity_period: "gov_action_lifetime",
+	governance_action_deposit: "gov_action_deposit",
+	drep_inactivity_period: "drep_activity",
+	ref_script_coins_per_byte: "min_fee_ref_script_cost_per_byte",
+};
+
+/**
+ * Encode a CSL `ProtocolParamUpdate` into a CIP-116-shaped object.
+ *
+ * CSL's `to_json()` emits the *entire* struct with `null` for every unset
+ * parameter and uses CSL's own field names, whereas CIP-116 metadata documents
+ * carry only the parameters being changed, under CIP-116 names. We therefore:
+ *
+ * - drop unset (`null`) fields so the result is sparse like the metadata, and
+ * - rename the handful of fields whose CSL name diverges from CIP-116
+ *   ({@link PPU_CSL_TO_CIP116}).
+ *
+ * Nested values (intervals, ex-units, cost models, protocol version) are left
+ * in CSL's `to_json()` shape — these match CIP-116 structurally, and
+ * `compareOnChain` tolerates the number/decimal-string spelling of scalars.
+ */
+export function encodeProtocolParamUpdate(
+	ppu: CslValue,
+): Record<string, unknown> {
+	const raw = cslToJson(ppu) as Record<string, unknown>;
+	const out: Record<string, unknown> = {};
+	for (const [key, value] of Object.entries(raw)) {
+		if (value === null || value === undefined) continue;
+		out[PPU_CSL_TO_CIP116[key] ?? key] = value;
+	}
+	return out;
 }
 
 export function encodeVoter(voter: CslValue): Voter {

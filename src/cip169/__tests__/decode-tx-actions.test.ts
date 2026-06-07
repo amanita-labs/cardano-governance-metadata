@@ -2,6 +2,7 @@ import { beforeAll, describe, expect, test } from "bun:test";
 import * as CSL from "@emurgo/cardano-serialization-lib-nodejs";
 import { decodeConwayTx, setCardanoSerializationLib } from "../index.js";
 import {
+	buildDivergentParamChangeActionTx,
 	buildDrepUpdateTx,
 	buildHardForkActionTx,
 	buildInfoActionTx,
@@ -14,6 +15,7 @@ import {
 	buildVotingProcedureFromPoolTx,
 	buildVotingProcedureTx,
 } from "./fixtures/build-tx.js";
+import { REAL_PARAM_CHANGE_TX_HEX } from "./fixtures/real-param-change-tx.js";
 
 beforeAll(() => {
 	setCardanoSerializationLib(CSL);
@@ -61,6 +63,55 @@ describe("cip169.decodeConwayTx — GovAction variants", () => {
 		const upd = action.protocol_param_update as Record<string, unknown>;
 		expect(upd.minfee_a).toBeDefined();
 		expect(upd.minfee_b).toBeDefined();
+	});
+
+	test("parameter_change_action emits a sparse, CIP-116-named protocol_param_update", () => {
+		const r = decodeConwayTx(REAL_PARAM_CHANGE_TX_HEX);
+		expect(r.success).toBe(true);
+		if (!r.success) return;
+		const action = r.data.proposalProcedures[0]?.gov_action;
+		expect(action.tag).toBe("parameter_change_action");
+		if (action.tag !== "parameter_change_action") return;
+		const upd = action.protocol_param_update as Record<string, unknown>;
+		// Only the changed field is present — no `null` placeholders for the
+		// ~32 untouched parameters.
+		expect(Object.keys(upd)).toEqual(["committee_min_size"]);
+		// CIP-116 field name, not CSL's `min_committee_size`.
+		expect(upd.committee_min_size).toBe(5);
+		expect(upd.min_committee_size).toBeUndefined();
+	});
+
+	test("protocol_param_update maps every divergent CSL field to its CIP-116 name", () => {
+		const r = decodeConwayTx(buildDivergentParamChangeActionTx().txHex);
+		expect(r.success).toBe(true);
+		if (!r.success) return;
+		const action = r.data.proposalProcedures[0]?.gov_action;
+		expect(action.tag).toBe("parameter_change_action");
+		if (action.tag !== "parameter_change_action") return;
+		const upd = action.protocol_param_update as Record<string, unknown>;
+
+		// CIP-116 names present...
+		expect(upd.committee_min_size).toBe(5);
+		expect(upd.committee_max_term_length).toBe(146);
+		expect(upd.gov_action_lifetime).toBe(30);
+		expect(upd.gov_action_deposit).toBe("100000000000");
+		expect(upd.drep_activity).toBe(20);
+		expect(upd.min_fee_ref_script_cost_per_byte).toEqual({
+			numerator: "15",
+			denominator: "1",
+		});
+
+		// ...and the CSL-vocabulary names are gone.
+		for (const cslName of [
+			"min_committee_size",
+			"committee_term_limit",
+			"governance_action_validity_period",
+			"governance_action_deposit",
+			"drep_inactivity_period",
+			"ref_script_coins_per_byte",
+		]) {
+			expect(upd[cslName]).toBeUndefined();
+		}
 	});
 
 	test("update_committee (a.k.a. new_committee) decodes with members + threshold", () => {

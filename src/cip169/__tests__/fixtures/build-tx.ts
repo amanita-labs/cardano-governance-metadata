@@ -264,6 +264,29 @@ export function buildParameterChangeActionTx(): {
 	return wrapTxWithProposal(govAction);
 }
 
+/**
+ * A parameter_change action that sets every protocol-param field whose CSL
+ * `to_json()` name diverges from its CIP-116 name. Used to verify the
+ * CSL→CIP-116 rename table in the encoder.
+ */
+export function buildDivergentParamChangeActionTx(): {
+	txHex: string;
+	tx: CSL.Transaction;
+} {
+	const upd = CSL.ProtocolParamUpdate.new();
+	upd.set_min_committee_size(5);
+	upd.set_committee_term_limit(146);
+	upd.set_governance_action_validity_period(30);
+	upd.set_governance_action_deposit(CSL.BigNum.from_str("100000000000"));
+	upd.set_drep_inactivity_period(20);
+	upd.set_ref_script_coins_per_byte(
+		CSL.UnitInterval.new(CSL.BigNum.from_str("15"), CSL.BigNum.from_str("1")),
+	);
+	const action = CSL.ParameterChangeAction.new(upd);
+	const govAction = CSL.GovernanceAction.new_parameter_change_action(action);
+	return wrapTxWithProposal(govAction);
+}
+
 export function buildUpdateCommitteeActionTx(): {
 	txHex: string;
 	tx: CSL.Transaction;
