@@ -1,6 +1,6 @@
 {
   "name": "@amanita-labs/cardano-governance-metadata",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "description": "TypeScript library for fetching, parsing, validating, and verifying Cardano governance metadata (CIP-100, CIP-108, CIP-119, CIP-136, CIP-169)",
   "type": "module",
   "sideEffects": false,
