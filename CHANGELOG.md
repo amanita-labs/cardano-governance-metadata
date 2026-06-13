@@ -6,6 +6,21 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## [0.1.3] - 2026-06-13
+
+### Added
+
+- **Default-trusted context hosts.** Under the `allowlist` policy (the library default), the official Intersect governance-actions schemas (`https://intersectmbo.github.io/governance-actions/**`) now resolve out of the box. A document whose `@context` points at e.g. `…/governance-actions/v1.2.0/schemas/parameter-changes/common.jsonld` canonicalizes and verifies with no caller setup — previously the default (empty-allowlist) loader rejected every unbundled URL with `MISSING_CONTEXT`. Untrusted hosts still fail closed. Note that resolving a remote context makes verification depend on the live document at that URL; for fully offline / reproducible verification, bundle the context (`registerContext` / `contextOptions.overrides`) and use `policy: "bundled-only"`.
+- **Interactive demo playground** (`demo/`) — a browser app exercising the full public pipeline (detect → parse → validate → verify, plus `resolve()`, the context registry, and COSE / CIP-8 witness inspection).
+
+### Changed
+
+- **`MISSING_CONTEXT` errors now state that the context was *not fetched*.** When a context URL is rejected by the `bundled-only` or `allowlist` policy, the message spells out that the `@context` was **not fetched** and that the document was therefore **not canonicalized** and its witness signatures **not verified**, with guidance to register / allowlist / fetch. Verification still fails closed — this is an additional warning, not a behavioral downgrade.
+
+### Fixed
+
+- **Misleading `CANONICALIZATION_FAILED` / CORS error when an `@context` could not be resolved.** jsonld's `ContextResolver` re-wraps *any* document-loader error as a generic `jsonld.InvalidUrl` — _"Dereferencing a URL did not result in a valid JSON-LD object… same-origin policy… too many redirects…"_ — which sent callers chasing phantom CORS / network problems when the real cause was a `MISSING_CONTEXT` policy rejection (the URL was perfectly reachable, served with `Access-Control-Allow-Origin: *`). `canonicalizeBody` now unwraps the underlying `GovernanceMetadataError` from the cause chain and surfaces it as the failure message, preserving it as `.cause` for programmatic inspection.
+
 ## [0.1.2] - 2026-06-07
 
 ### Fixed
