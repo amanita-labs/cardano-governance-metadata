@@ -33,11 +33,32 @@ describe("createDocumentLoader policy", () => {
 		);
 	});
 
-	test("allowlist with no patterns rejects unknown URLs", async () => {
+	test("allowlist with no patterns rejects untrusted URLs", async () => {
 		const loader = createDocumentLoader({ policy: "allowlist", allowlist: [] });
-		await expect(
-			loader("https://intersectmbo.github.io/governance-actions/v1.1.0/x"),
-		).rejects.toThrow(/does not match/i);
+		await expect(loader("https://example.com/ctx.jsonld")).rejects.toThrow(
+			/does not match/i,
+		);
+	});
+
+	test("allowlist fetches official intersectmbo governance-actions URL by default (no caller patterns)", async () => {
+		const fetched: string[] = [];
+		const loader = createDocumentLoader({
+			policy: "allowlist",
+			allowlist: [],
+			fetch: (async (url: string | URL | Request) => {
+				const u = typeof url === "string" ? url : url.toString();
+				fetched.push(u);
+				return new Response(JSON.stringify({ "@context": { x: "y" } }), {
+					status: 200,
+					headers: { "content-type": "application/ld+json" },
+				});
+			}) as unknown as typeof fetch,
+		});
+		const doc = await loader(
+			"https://intersectmbo.github.io/governance-actions/v1.2.0/schemas/parameter-changes/common.jsonld",
+		);
+		expect(fetched).toHaveLength(1);
+		expect(doc.document).toEqual({ "@context": { x: "y" } });
 	});
 
 	test("allowlist with glob fetches matching URL", async () => {

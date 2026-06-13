@@ -87,4 +87,35 @@ describe("canonicalizeBody", () => {
 			expect(r.error.code).toBe(ErrorCode.CANONICALIZATION_FAILED);
 		}
 	});
+
+	test("surfaces the real MISSING_CONTEXT cause, not jsonld's generic CORS message", async () => {
+		// The URL is perfectly reachable; it just isn't bundled. jsonld masks our
+		// MISSING_CONTEXT with a misleading "same-origin policy / too many
+		// redirects" message — we must unwrap and surface the real reason.
+		const doc = {
+			"@context":
+				"https://intersectmbo.github.io/governance-actions/v1.2.0/schemas/parameter-changes/common.jsonld",
+			hashAlgorithm: "blake2b-256",
+			body: { comment: "x" },
+		};
+		const r = await canonicalizeBody(doc, {
+			contextOptions: { policy: "bundled-only" },
+		});
+		expect(r.success).toBe(false);
+		if (!r.success) {
+			expect(r.error.code).toBe(ErrorCode.CANONICALIZATION_FAILED);
+			// Real reason is surfaced…
+			expect(r.error.message).toContain(ErrorCode.MISSING_CONTEXT);
+			expect(r.error.message).toContain("is not bundled");
+			// …with an explicit warning that the context was not fetched and that
+			// verification therefore did not happen…
+			expect(r.error.message).toContain("was NOT fetched");
+			expect(r.error.message).toContain("NOT verified");
+			// …and the misleading jsonld text is gone.
+			expect(r.error.message).not.toContain("same-origin policy");
+			// The unwrapped cause is preserved for programmatic inspection.
+			const cause = r.error.cause as { code?: string } | undefined;
+			expect(cause?.code).toBe(ErrorCode.MISSING_CONTEXT);
+		}
+	});
 });
