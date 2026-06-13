@@ -91,7 +91,11 @@ export function ValidateTab() {
         { document: doc, rawBytes },
         {
           anchorHash: anchorHash.trim() || undefined,
-          contextOptions: { policy: "bundled-only" },
+          // "allowlist" (the library default) resolves bundled CIP contexts
+          // offline and fetches the official Intersect governance-actions
+          // contexts (e.g. the v1.x parameter-changes schemas) that on-chain
+          // metadata references by URL. Untrusted hosts still fail closed.
+          contextOptions: { policy: "allowlist" },
         },
       );
 
@@ -139,7 +143,9 @@ export function ValidateTab() {
     try {
       const result = await resolve(uri.trim(), {
         anchorHash: anchorHash.trim() || undefined,
-        contextOptions: { policy: "bundled-only" },
+        // See runOffline: "allowlist" trusts bundled CIP contexts + the official
+        // Intersect governance-actions hosts, and fails closed on anything else.
+        contextOptions: { policy: "allowlist" },
       });
       setReport({ kind: "online", result });
     } finally {

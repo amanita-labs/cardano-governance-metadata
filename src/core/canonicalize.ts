@@ -4,7 +4,11 @@ import {
 	type DocumentLoaderFn,
 	createDocumentLoader,
 } from "./context.js";
-import { ErrorCode, VerificationError } from "./errors.js";
+import {
+	ErrorCode,
+	GovernanceMetadataError,
+	VerificationError,
+} from "./errors.js";
 import type { ContextResolutionOptions, Result } from "./types.js";
 
 export interface CanonicalizeOptions {
@@ -108,13 +112,41 @@ export async function canonicalizeBody(
 
 		return { success: true, data: result };
 	} catch (err) {
+		// jsonld's ContextResolver re-wraps ANY documentLoader error as a generic
+		// `jsonld.InvalidUrl` "Dereferencing a URL did not result in a valid
+		// JSON-LD object… same-origin policy… too many redirects…" message,
+		// stashing the original error under `details.cause`. That generic text is
+		// actively misleading when the real cause is, e.g., a `MISSING_CONTEXT`
+		// from our own loader (the URL is perfectly reachable). Surface the real
+		// underlying error instead — see `unwrapLoaderError`.
+		const real = unwrapLoaderError(err);
 		return {
 			success: false,
 			error: new VerificationError(
 				ErrorCode.CANONICALIZATION_FAILED,
-				`Failed to canonicalize document: ${err}`,
-				err,
+				`Failed to canonicalize document: ${real ? `${real.code}: ${real.message}` : err}`,
+				real ?? err,
 			),
 		};
 	}
+}
+
+/**
+ * Walk an error's cause chain (jsonld stashes the original under
+ * `details.cause`; native errors use `cause`) and return the first
+ * `GovernanceMetadataError` found — i.e. the real reason a context failed to
+ * load, before jsonld masked it with its generic dereferencing message.
+ */
+function unwrapLoaderError(err: unknown): GovernanceMetadataError | undefined {
+	const seen = new Set<unknown>();
+	let current: unknown = err;
+	while (current && typeof current === "object" && !seen.has(current)) {
+		seen.add(current);
+		if (current instanceof GovernanceMetadataError) return current;
+		const next =
+			(current as { details?: { cause?: unknown } }).details?.cause ??
+			(current as { cause?: unknown }).cause;
+		current = next;
+	}
+	return undefined;
 }

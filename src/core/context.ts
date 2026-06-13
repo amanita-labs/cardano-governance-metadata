@@ -143,6 +143,27 @@ export function listBundledContextUrls(): string[] {
 const DEFAULT_POLICY: ContextPolicy = "allowlist";
 
 /**
+ * Context-host patterns trusted by default under the `"allowlist"` policy, in
+ * addition to any caller-supplied `allowlist`. These are the official
+ * Intersect-hosted governance-actions schemas — published JSON-LD `@context`
+ * documents that governance-action metadata references by URL (e.g.
+ * `…/governance-actions/v1.2.0/schemas/parameter-changes/common.jsonld`).
+ *
+ * The host serves them with `Access-Control-Allow-Origin: *`, so they resolve
+ * in the browser too. Trusting them here means a document carrying one of these
+ * `@context` URLs canonicalizes/verifies out of the box without each caller
+ * having to register or allowlist it.
+ *
+ * Trade-off: resolving a remote context makes verification depend on the live
+ * document at that URL. For fully reproducible, offline verification, bundle the
+ * context (`registerContext` / `contextOptions.overrides`) and use
+ * `policy: "bundled-only"` instead.
+ */
+export const DEFAULT_TRUSTED_CONTEXT_PATTERNS: readonly string[] = [
+	"https://intersectmbo.github.io/governance-actions/**",
+];
+
+/**
  * Build a JSON-LD document loader that obeys the configured policy.
  *
  * Resolution order: explicit `overrides` map → runtime-registered contexts →
@@ -207,10 +228,17 @@ export function createDocumentLoader(
 		}
 
 		if (policy === "allowlist") {
-			if (!matchesAllowlist(url, allowlist)) {
+			// The default trusted patterns (official Intersect governance-actions
+			// hosts) are always honored under `allowlist`, in addition to any
+			// caller-supplied patterns.
+			const effectiveAllowlist = [
+				...allowlist,
+				...DEFAULT_TRUSTED_CONTEXT_PATTERNS,
+			];
+			if (!matchesAllowlist(url, effectiveAllowlist)) {
 				throw new ParseError(
 					ErrorCode.MISSING_CONTEXT,
-					`JSON-LD @context "${url}" is not bundled and does not match contextOptions.allowlist. Add a pattern to allowlist (string with * or ** globs, or a RegExp), pass it via contextOptions.overrides, or use contextOptions.policy = "fetch".`,
+					`JSON-LD @context "${url}" is not bundled and does not match contextOptions.allowlist or the default trusted hosts. Add a pattern to allowlist (string with * or ** globs, or a RegExp), pass it via contextOptions.overrides, or use contextOptions.policy = "fetch".`,
 				);
 			}
 		}
