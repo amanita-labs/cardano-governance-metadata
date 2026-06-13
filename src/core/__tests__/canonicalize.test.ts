@@ -107,6 +107,10 @@ describe("canonicalizeBody", () => {
 			// Real reason is surfaced…
 			expect(r.error.message).toContain(ErrorCode.MISSING_CONTEXT);
 			expect(r.error.message).toContain("is not bundled");
+			// …with an explicit warning that the context was not fetched and that
+			// verification therefore did not happen…
+			expect(r.error.message).toContain("was NOT fetched");
+			expect(r.error.message).toContain("NOT verified");
 			// …and the misleading jsonld text is gone.
 			expect(r.error.message).not.toContain("same-origin policy");
 			// The unwrapped cause is preserved for programmatic inspection.

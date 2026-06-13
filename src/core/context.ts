@@ -223,7 +223,7 @@ export function createDocumentLoader(
 		if (policy === "bundled-only") {
 			throw new ParseError(
 				ErrorCode.MISSING_CONTEXT,
-				`JSON-LD @context "${url}" is not bundled. Either register it via registerContext() / contextOptions.overrides, or set contextOptions.policy = "allowlist" with a matching pattern, or "fetch".`,
+				`JSON-LD @context "${url}" was NOT fetched: it is not bundled or registered, and the "bundled-only" policy never makes network requests. The document was therefore NOT canonicalized and its witness signatures were NOT verified. Register it via registerContext() / contextOptions.overrides, or switch contextOptions.policy to "allowlist" (with a matching pattern) or "fetch" to permit fetching.`,
 			);
 		}
 
@@ -238,7 +238,7 @@ export function createDocumentLoader(
 			if (!matchesAllowlist(url, effectiveAllowlist)) {
 				throw new ParseError(
 					ErrorCode.MISSING_CONTEXT,
-					`JSON-LD @context "${url}" is not bundled and does not match contextOptions.allowlist or the default trusted hosts. Add a pattern to allowlist (string with * or ** globs, or a RegExp), pass it via contextOptions.overrides, or use contextOptions.policy = "fetch".`,
+					`JSON-LD @context "${url}" was NOT fetched: it is not bundled or registered and does not match contextOptions.allowlist or the default trusted hosts, so the "allowlist" policy refused to fetch it. The document was therefore NOT canonicalized and its witness signatures were NOT verified. Add a pattern to contextOptions.allowlist (string with * or ** globs, or a RegExp), pass the document via contextOptions.overrides, or use contextOptions.policy = "fetch".`,
 				);
 			}
 		}
