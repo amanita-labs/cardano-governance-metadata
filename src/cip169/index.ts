@@ -8,6 +8,9 @@ export type {
 	GovActionId,
 	GovActionTag,
 	CertNoAnchorTag,
+	Anchor,
+	DecodedGovEnvelope,
+	GovEnvelopeKind,
 	OnChain,
 	OnChainCompareResult,
 	OnChainDifference,
@@ -20,6 +23,9 @@ export type {
 	Selector,
 	UnitInterval,
 	UpdateDrepNoAnchor,
+	VerifyAgainstEnvelopeMatched,
+	VerifyAgainstEnvelopeMismatched,
+	VerifyAgainstEnvelopeResult,
 	VerifyAgainstTxMatched,
 	VerifyAgainstTxMismatched,
 	VerifyAgainstTxResult,
@@ -46,11 +52,18 @@ export * as actions from "./actions.js";
 export { stripSelfAnchor } from "./strip-self-anchor.js";
 export {
 	compareOnChain,
+	verifyAgainstEnvelope,
 	verifyAgainstTx,
 	type CompareOptions,
+	type VerifyAgainstEnvelopeOptions,
 	type VerifyAgainstTxOptions,
 } from "./compare.js";
 export { decodeConwayTx } from "./conway/decode-tx.js";
+export {
+	decodeGovEnvelope,
+	type DecodeGovEnvelopeOptions,
+	type GovEnvelopeInput,
+} from "./conway/decode-envelope.js";
 export {
 	setCardanoSerializationLib,
 	getCardanoSerializationLib,

@@ -4,6 +4,11 @@ import {
 	ValidationError,
 } from "../core/errors.js";
 import type { Result } from "../core/types.js";
+import {
+	type DecodeGovEnvelopeOptions,
+	type GovEnvelopeInput,
+	decodeGovEnvelope,
+} from "./conway/decode-envelope.js";
 import { decodeConwayTx } from "./conway/decode-tx.js";
 import { stripSelfAnchor } from "./strip-self-anchor.js";
 import type {
@@ -13,6 +18,7 @@ import type {
 	OnChainDifference,
 	ProposalProcedureNoAnchor,
 	Selector,
+	VerifyAgainstEnvelopeResult,
 	VerifyAgainstTxResult,
 	VotingProceduresNoAnchor,
 } from "./types.js";
@@ -138,6 +144,70 @@ export async function verifyAgainstTx(
 			matched: false,
 			differences: cmp.data.differences,
 			selectorUsed,
+		},
+	};
+}
+
+export interface VerifyAgainstEnvelopeOptions
+	extends CompareOptions,
+		DecodeGovEnvelopeOptions {}
+
+/**
+ * Verify a metadata document's `body.onChain` against a *bare* governance
+ * artifact — a cardano-cli TextEnvelope (`.action` / `.vote` / `.cert` file
+ * content, object or JSON string) or its raw CBOR — without needing the
+ * full transaction. Decodes via `decodeGovEnvelope` and delegates to
+ * `compareOnChain`.
+ *
+ * Returns:
+ * - `{ matched: true, kind, anchors }` on a successful match,
+ * - `{ matched: false, kind, anchors, differences }` when the structures
+ *   diverge,
+ * - or a top-level error (`success: false`) for missing `body.onChain` or
+ *   an undecodable envelope.
+ *
+ * `anchors` are the metadata anchors CIP-0169 omits from `body.onChain`;
+ * check their `data_hash` against the metadata file's blake2b-256 hash to
+ * complete verification.
+ */
+export function verifyAgainstEnvelope(
+	metadata: unknown,
+	envelope: GovEnvelopeInput,
+	options?: VerifyAgainstEnvelopeOptions,
+): Result<VerifyAgainstEnvelopeResult, GovernanceMetadataError> {
+	const onChain = extractOnChain(metadata);
+	if (!onChain) {
+		return {
+			success: false,
+			error: new ValidationError([
+				{
+					path: "body.onChain",
+					message: "metadata document has no body.onChain property",
+					code: "missing_onchain",
+				},
+			]),
+		};
+	}
+
+	const decodeResult = decodeGovEnvelope(envelope, { kind: options?.kind });
+	if (!decodeResult.success) return decodeResult;
+	const { kind, onChain: candidate, anchors } = decodeResult.data;
+
+	const cmp = compareOnChain(onChain, candidate, {
+		stripSelfAnchor: options?.stripSelfAnchor,
+	});
+	if (!cmp.success) return cmp;
+
+	if (cmp.data.equal) {
+		return { success: true, data: { matched: true, kind, anchors } };
+	}
+	return {
+		success: true,
+		data: {
+			matched: false,
+			kind,
+			anchors,
+			differences: cmp.data.differences,
 		},
 	};
 }
