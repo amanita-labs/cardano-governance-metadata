@@ -16,7 +16,7 @@ import type {
 } from "./types.js";
 
 /**
- * Per-action factory helpers for CIP-169 on-chain effects. Each helper is a
+ * Per-action factory helpers for CIP-169 on-chain bindings. Each helper is a
  * pure type-narrowed constructor — there is no runtime validation here.
  * Documents containing the result are validated end-to-end by `cip169.build`
  * (or by any `cipNNN.build` that nests the value under `body.onChain`).
@@ -38,12 +38,12 @@ type NoConfidence = Extract<GovAction, { tag: "no_confidence" }>;
 type UpdateCommittee = Extract<GovAction, { tag: "update_committee" }>;
 type NewConstitution = Extract<GovAction, { tag: "new_constitution" }>;
 
-export function infoAction(input?: {
-	gov_action_id?: GovActionId;
-}): InfoAction {
-	return input?.gov_action_id
-		? { tag: "info_action", gov_action_id: input.gov_action_id }
-		: { tag: "info_action" };
+/**
+ * Per the CIP-0169 schema, `info_action` carries only its tag — no
+ * `gov_action_id` (info actions do not chain to a previous action).
+ */
+export function infoAction(): InfoAction {
+	return { tag: "info_action" };
 }
 
 export function parameterChange(input: {

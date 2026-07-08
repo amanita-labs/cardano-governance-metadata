@@ -10,15 +10,11 @@ import type {
 	ProposalProcedureNoAnchor,
 } from "../types.js";
 import {
-	encodeCredential,
+	encodeCertNoAnchor,
 	encodeProposalProcedureNoAnchor,
 	encodeVotingProceduresNoAnchor,
 } from "./cip116-encode.js";
 import { requireCsl } from "./csl-loader.js";
-
-const CERT_KIND_COMMITTEE_COLD_RESIGN = 8;
-const CERT_KIND_DREP_REGISTRATION = 10;
-const CERT_KIND_DREP_UPDATE = 11;
 
 /**
  * Decode a Conway-era transaction CBOR (`Uint8Array` or hex string) into the
@@ -117,45 +113,14 @@ export function decodeConwayTx(
 			for (let i = 0; i < certsLen; i++) {
 				const cert = track(certs.get(i));
 				try {
-					const kind = cert.kind();
-					switch (kind) {
-						case CERT_KIND_DREP_REGISTRATION: {
-							const c = track(cert.as_drep_registration());
-							if (!c) break;
-							const cred = track(c.voting_credential());
-							const coin = track(c.coin());
-							certificates.push({
-								tag: "register_drep",
-								drep_credential: encodeCredential(cred),
-								coin: coin.to_str(),
-							});
-							break;
-						}
-						case CERT_KIND_DREP_UPDATE: {
-							const c = track(cert.as_drep_update());
-							if (!c) break;
-							const cred = track(c.voting_credential());
-							certificates.push({
-								tag: "update_drep",
-								drep_credential: encodeCredential(cred),
-							});
-							break;
-						}
-						case CERT_KIND_COMMITTEE_COLD_RESIGN: {
-							const c = track(cert.as_committee_cold_resign());
-							if (!c) break;
-							const cred = track(c.committee_cold_credential());
-							certificates.push({
-								tag: "resign_committee_cold",
-								committee_cold_credential: encodeCredential(cred),
-							});
-							break;
-						}
-						default:
-							skipped.push({
-								kind: "certificate",
-								reason: `certificate[${i}] kind=${kind} is not bound by CIP-0169`,
-							});
+					const encoded = encodeCertNoAnchor(cert);
+					if (encoded) {
+						certificates.push(encoded);
+					} else {
+						skipped.push({
+							kind: "certificate",
+							reason: `certificate[${i}] kind=${cert.kind()} is not bound by CIP-0169`,
+						});
 					}
 				} catch (err) {
 					skipped.push({

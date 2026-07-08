@@ -10,6 +10,7 @@
  * `requireCsl()` upstream) and the CSL-native object, and returns plain JSON.
  */
 import type {
+	CertNoAnchor,
 	Constitution,
 	Credential,
 	GovAction,
@@ -257,40 +258,22 @@ export function encodeProtocolParamUpdate(
 
 export function encodeVoter(voter: CslValue): Voter {
 	switch (voter.kind()) {
-		case VOTER_KIND_CC_HOT: {
-			const cred = voter.to_constitutional_committee_hot_credential();
-			return {
-				tag: "constitutional_committee_hot_credential",
-				credential: cred ? encodeCredential(cred) : undefined,
-			};
-		}
+		case VOTER_KIND_CC_HOT:
 		case VOTER_KIND_CC_HOT_SCRIPT: {
 			const cred = voter.to_constitutional_committee_hot_credential();
-			return {
-				tag: "constitutional_committee_hot_credential",
-				credential: cred ? encodeCredential(cred) : undefined,
-			};
+			if (!cred) throw new Error("CC voter is missing its hot credential");
+			return { tag: "cc_credential", credential: encodeCredential(cred) };
 		}
-		case VOTER_KIND_DREP: {
-			const cred = voter.to_drep_credential();
-			return {
-				tag: "drep_credential",
-				credential: cred ? encodeCredential(cred) : undefined,
-			};
-		}
+		case VOTER_KIND_DREP:
 		case VOTER_KIND_DREP_SCRIPT: {
 			const cred = voter.to_drep_credential();
-			return {
-				tag: "drep_credential",
-				credential: cred ? encodeCredential(cred) : undefined,
-			};
+			if (!cred) throw new Error("DRep voter is missing its credential");
+			return { tag: "drep_credential", credential: encodeCredential(cred) };
 		}
 		case VOTER_KIND_POOL: {
 			const kh = voter.to_stake_pool_key_hash();
-			return {
-				tag: "staking_pool_key_hash",
-				key_hash: kh ? kh.to_hex() : undefined,
-			};
+			if (!kh) throw new Error("SPO voter is missing its key hash");
+			return { tag: "spo_keyhash", pubkey_hash: kh.to_hex() };
 		}
 		default:
 			throw new Error(`Unknown VoterKind ${voter.kind()}`);
@@ -363,6 +346,66 @@ export function encodeVotingProceduresNoAnchor(
 		voters.free?.();
 	}
 	return result;
+}
+
+const CERT_KIND_COMMITTEE_COLD_RESIGN = 8;
+const CERT_KIND_DREP_REGISTRATION = 10;
+const CERT_KIND_DREP_UPDATE = 11;
+
+/**
+ * Encode a CSL `Certificate` into a CIP-169 no-anchor certificate value.
+ * Returns `null` for certificate kinds not bound by CIP-0169 (only
+ * register_drep / update_drep / resign_committee_cold are).
+ */
+export function encodeCertNoAnchor(cert: CslValue): CertNoAnchor | null {
+	const handles: Array<{ free?: () => void }> = [];
+	const track = <T extends { free?: () => void }>(h: T): T => {
+		handles.push(h);
+		return h;
+	};
+	try {
+		switch (cert.kind()) {
+			case CERT_KIND_DREP_REGISTRATION: {
+				const c = track(cert.as_drep_registration());
+				if (!c) return null;
+				const cred = track(c.voting_credential());
+				const coin = track(c.coin());
+				return {
+					tag: "register_drep",
+					drep_credential: encodeCredential(cred),
+					coin: coin.to_str(),
+				};
+			}
+			case CERT_KIND_DREP_UPDATE: {
+				const c = track(cert.as_drep_update());
+				if (!c) return null;
+				const cred = track(c.voting_credential());
+				return {
+					tag: "update_drep",
+					drep_credential: encodeCredential(cred),
+				};
+			}
+			case CERT_KIND_COMMITTEE_COLD_RESIGN: {
+				const c = track(cert.as_committee_cold_resign());
+				if (!c) return null;
+				const cred = track(c.committee_cold_credential());
+				return {
+					tag: "resign_committee_cold",
+					committee_cold_credential: encodeCredential(cred),
+				};
+			}
+			default:
+				return null;
+		}
+	} finally {
+		for (let i = handles.length - 1; i >= 0; i--) {
+			try {
+				handles[i].free?.();
+			} catch {
+				// best-effort cleanup
+			}
+		}
+	}
 }
 
 export function encodeProposalProcedureNoAnchor(
