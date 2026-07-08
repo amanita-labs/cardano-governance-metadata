@@ -4,6 +4,7 @@ import {
 	AuthorSchema,
 	ExternalUpdateSchema,
 	HashedReferenceSchema,
+	maxCodePoints,
 } from "../core/schemas.js";
 
 const Cip136ReferenceSchema = HashedReferenceSchema.extend({
@@ -20,7 +21,7 @@ const InternalVoteSchema = z.object({
 
 export const Cip136BodySchema = z
 	.object({
-		summary: z.string().max(300),
+		summary: maxCodePoints(300),
 		rationaleStatement: z.string(),
 		precedentDiscussion: z.string().optional(),
 		counterargumentDiscussion: z.string().optional(),
