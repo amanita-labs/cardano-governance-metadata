@@ -3,7 +3,7 @@
 An interactive, offline-first browser playground for
 [`@amanita-labs/cardano-governance-metadata`](../). It exercises the library's
 full public API: validating existing metadata and generating new metadata
-across **CIP-100 / 108 / 119 / 136**, plus the **CIP-169** on-chain effects
+across **CIP-100 / 108 / 119 / 136**, plus the **CIP-169** on-chain binding
 extension (decode a Conway transaction and verify metadata against it).
 
 ## What it shows

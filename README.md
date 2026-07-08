@@ -10,7 +10,7 @@ Supports [CIP-100](https://github.com/cardano-foundation/CIPs/tree/master/CIP-01
 | CIP-108 | Governance Actions | [cardano-foundation/CIPs/CIP-0108](https://github.com/cardano-foundation/CIPs/tree/master/CIP-0108) |
 | CIP-119 | DRep Registration | [cardano-foundation/CIPs/CIP-0119](https://github.com/cardano-foundation/CIPs/tree/master/CIP-0119) |
 | CIP-136 | Constitutional Committee Votes | [cardano-foundation/CIPs/CIP-0136](https://github.com/cardano-foundation/CIPs/tree/master/CIP-0136) |
-| CIP-169 | On-Chain Effects (cross-cutting; layered on any of the above) | [cardano-foundation/CIPs#1101 (draft)](https://github.com/cardano-foundation/CIPs/pull/1101) |
+| CIP-169 | On-Chain Binding (cross-cutting; layered on any of the above) | [cardano-foundation/CIPs#1101 (draft)](https://github.com/cardano-foundation/CIPs/pull/1101) |
 
 > CIP-169 is in draft until PR [#1101](https://github.com/cardano-foundation/CIPs/pull/1101) is merged. Pin a specific version of this library if you depend on a specific draft revision.
 

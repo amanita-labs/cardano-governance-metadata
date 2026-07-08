@@ -6,6 +6,18 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+### Changed
+
+- **CIP-169 schemas are now strict (breaking).** The final CIP-0169 spec (spec commit `8046c792`, PR [#1101](https://github.com/cardano-foundation/CIPs/pull/1101)) sets `unevaluatedProperties: false` on every `onChain` object, so all cip169 zod schemas moved from `.passthrough()` to `.strict()`. This is what rejects the spec's `forbidden-anchor` negative vector — a self-referential `anchor` smuggled into any variant now fails validation, as do `update_drep` + `coin` and other stray keys. Forward-compat for future CIP-116 fields is provided by the context's `@vocab`, not schema leniency; `parse(..., { skipValidation: true })` remains the lenient escape hatch. The only deliberate leniency kept is `protocol_param_update` (an open record — the spec `$ref`s the full CIP-116 `ProtocolParamUpdate`). Additionally per spec: `info_action` no longer admits `gov_action_id`, `VotingProcedures` requires at least one entry at both levels, and `Constitution` requires its `anchor` (the retained one).
+- **CIP-116 voter naming (breaking).** The voter tags emitted and accepted are now CIP-116's: `cc_credential` (was `constitutional_committee_hot_credential`) and `spo_keyhash` with `pubkey_hash` (was `staking_pool_key_hash` with `key_hash`). The old CSL-flavored tags never matched spec-conformant documents — the spec's `committee-vote.jsonld` example failed validation and CC votes decoded from chain could never match metadata. Consumers pattern-matching `decodeConwayTx` output must update.
+- **Bundled CIP-0169 context synced with the final spec.** The spec added `@vocab` inside `onChain` (guaranteeing every current and future CIP-116 term survives canonicalization and is covered by the signature) plus nested `@context`s for credentials, `signature_threshold`, constitution `anchor`, and voting-procedure values. Documents that inline their context (all known real-world docs) are unaffected — golden hashes reproduce unchanged.
+- CIP-169's title is now "Governance Metadata - **On-Chain Binding**" (was "On-Chain Effects"); docs updated.
+
+### Added
+
+- **`cip169.decodeGovEnvelope` / `cip169.verifyAgainstEnvelope`** — decode and verify against *bare* governance artifacts as produced by `cardano-cli conway governance ...`: a TextEnvelope (`.action` / `.vote` / `.cert` file, object or JSON string) or its raw CBOR, without needing the full transaction. Returns the decoded no-anchor `onChain` value plus the on-chain `anchor`(s) so callers can complete the anchor-hash check against the metadata file's blake2b-256.
+- **CIP-0169 spec conformance suite** (`src/__tests__/cip169-spec-conformance.test.ts`) against the spec's examples and test vectors, vendored byte-identical at `docs/examples/fixtures/cip-0169-spec/` (pinned commit in `PROVENANCE.md`): all 9 valid examples validate and reproduce both golden hashes (file content + canonicalized body) with every author signature verifying; the `forbidden-anchor` negative vector is rejected; all 7 Preview-testnet documents verify end-to-end against their cardano-cli envelopes including anchor hashes; negative vectors #2 (metadata replay) and #3 (omitted `policy_hash`) yield the exact expected difference paths.
+
 ## [0.1.3] - 2026-06-13
 
 ### Added

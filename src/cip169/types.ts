@@ -47,15 +47,25 @@ export interface CommitteeMember {
 	value: string | number;
 }
 
+export interface Anchor {
+	url: string;
+	data_hash: string;
+}
+
+/**
+ * Per CIP-116, `anchor` is required — it points to the constitution document
+ * itself (not this metadata), so it is retained: the one exception to
+ * CIP-0169's anchor-omission rule.
+ */
 export interface Constitution {
-	anchor?: { url: string; data_hash: string } | unknown;
+	anchor: Anchor;
 	script_hash?: string;
 }
 
 export type ProtocolParamUpdate = Record<string, unknown>;
 
 export type GovAction =
-	| { tag: "info_action"; gov_action_id?: GovActionId }
+	| { tag: "info_action" }
 	| {
 			tag: "parameter_change_action";
 			gov_action_id?: GovActionId;
@@ -92,17 +102,16 @@ export interface ProposalProcedureNoAnchor {
 	gov_action: GovAction;
 }
 
-export type VoterTag =
-	| "constitutional_committee_hot_credential"
-	| "drep_credential"
-	| "staking_pool_key_hash";
+export type VoterTag = "cc_credential" | "drep_credential" | "spo_keyhash";
 
-export interface Voter {
-	tag: VoterTag;
-	credential?: Credential;
-	key_hash?: string;
-	pubkey_hash?: string;
-}
+/**
+ * CIP-116 Voter: credential voters carry `credential`; SPO voters carry
+ * `pubkey_hash` under the `spo_keyhash` tag.
+ */
+export type Voter =
+	| { tag: "cc_credential"; credential: Credential }
+	| { tag: "drep_credential"; credential: Credential }
+	| { tag: "spo_keyhash"; pubkey_hash: string };
 
 export type Vote = "yes" | "no" | "abstain";
 
@@ -178,3 +187,38 @@ export interface VerifyAgainstTxMismatched {
 export type VerifyAgainstTxResult =
 	| VerifyAgainstTxMatched
 	| VerifyAgainstTxMismatched;
+
+export type GovEnvelopeKind =
+	| "proposalProcedure"
+	| "votingProcedures"
+	| "certificate";
+
+export interface DecodedGovEnvelope {
+	kind: GovEnvelopeKind;
+	onChain: OnChain;
+	/**
+	 * Metadata anchors found on the decoded value — the ones CIP-0169 omits
+	 * from `body.onChain` because they point at the metadata document itself:
+	 * the proposal/certificate anchor, or each inner voting-procedure anchor.
+	 * Use these to check the on-chain `data_hash` against the metadata file's
+	 * blake2b-256 hash.
+	 */
+	anchors: Anchor[];
+}
+
+export interface VerifyAgainstEnvelopeMatched {
+	matched: true;
+	kind: GovEnvelopeKind;
+	anchors: Anchor[];
+}
+
+export interface VerifyAgainstEnvelopeMismatched {
+	matched: false;
+	kind: GovEnvelopeKind;
+	anchors: Anchor[];
+	differences: OnChainDifference[];
+}
+
+export type VerifyAgainstEnvelopeResult =
+	| VerifyAgainstEnvelopeMatched
+	| VerifyAgainstEnvelopeMismatched;

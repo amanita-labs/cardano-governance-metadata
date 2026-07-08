@@ -83,10 +83,6 @@ describe("cip169.build (OnChain payload)", () => {
 describe("cip169.actions helpers", () => {
 	test("infoAction produces the tagged shape", () => {
 		expect(actions.infoAction()).toEqual({ tag: "info_action" });
-		expect(actions.infoAction({ gov_action_id: govActionId })).toEqual({
-			tag: "info_action",
-			gov_action_id: govActionId,
-		});
 	});
 
 	test("parameterChange embeds protocol_param_update", () => {

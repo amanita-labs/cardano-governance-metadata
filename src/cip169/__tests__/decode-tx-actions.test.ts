@@ -258,8 +258,8 @@ describe("cip169.decodeConwayTx — voting procedures", () => {
 		expect(r.success).toBe(true);
 		if (!r.success) return;
 		expect(r.data.votingProcedures?.[0].key).toEqual({
-			tag: "staking_pool_key_hash",
-			key_hash: POOL,
+			tag: "spo_keyhash",
+			pubkey_hash: POOL,
 		});
 	});
 
@@ -276,7 +276,7 @@ describe("cip169.decodeConwayTx — voting procedures", () => {
 		expect(r.success).toBe(true);
 		if (!r.success) return;
 		expect(r.data.votingProcedures?.[0].key).toEqual({
-			tag: "constitutional_committee_hot_credential",
+			tag: "cc_credential",
 			credential: { tag: "pubkey_hash", value: CC_HOT },
 		});
 	});
