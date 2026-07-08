@@ -1,5 +1,13 @@
 import { z } from "zod";
 
+// JSON Schema maxLength counts Unicode code points, whereas Zod's
+// .max() counts UTF-16 code units — astral characters (emoji, some CJK)
+// would count double under .max(). Match the spec's semantics.
+export const maxCodePoints = (limit: number) =>
+	z.string().refine((value) => [...value].length <= limit, {
+		message: `String must contain at most ${limit} character(s)`,
+	});
+
 export const HashAlgorithmSchema = z.literal("blake2b-256");
 
 // CIP-100 spec allows "ed25519" or "CIP-8" (the COSE_Sign1 envelope from

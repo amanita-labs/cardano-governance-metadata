@@ -35,4 +35,13 @@ describe("cip119.build", () => {
 			true,
 		);
 	});
+
+	// JSON Schema maxLength counts Unicode code points, not UTF-16 code units.
+	test("counts givenName limit in code points, not UTF-16 code units", () => {
+		const result = build({ body: { givenName: "🎉".repeat(80) } });
+		expect(result.success).toBe(true);
+
+		const overLimit = build({ body: { givenName: "🎉".repeat(81) } });
+		expect(overLimit.success).toBe(false);
+	});
 });

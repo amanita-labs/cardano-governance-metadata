@@ -69,6 +69,43 @@ describe("cip108.build", () => {
 		);
 	});
 
+	test("accepts title at exactly 80 chars and abstract at exactly 2500 chars", () => {
+		const result = build({
+			body: {
+				...minimalBody,
+				title: "X".repeat(80),
+				abstract: "X".repeat(2500),
+			},
+		});
+		expect(result.success).toBe(true);
+	});
+
+	test("returns ValidationError when abstract exceeds 2500 chars", () => {
+		const result = build({
+			body: { ...minimalBody, abstract: "X".repeat(2501) },
+		});
+		expect(result.success).toBe(false);
+		if (result.success) throw new Error("unreachable");
+		expect(result.error).toBeInstanceOf(ValidationError);
+		expect(result.error.issues.some((i) => i.path.includes("abstract"))).toBe(
+			true,
+		);
+	});
+
+	// JSON Schema maxLength counts Unicode code points, not UTF-16 code units,
+	// so 80 astral characters (e.g. emoji) is a spec-valid title.
+	test("counts title/abstract limits in code points, not UTF-16 code units", () => {
+		const result = build({
+			body: { ...minimalBody, title: "🎉".repeat(80) },
+		});
+		expect(result.success).toBe(true);
+
+		const overLimit = build({
+			body: { ...minimalBody, title: "🎉".repeat(81) },
+		});
+		expect(overLimit.success).toBe(false);
+	});
+
 	test("returns ValidationError when required body field missing", () => {
 		const { motivation: _omit, ...incompleteBody } = minimalBody;
 		const result = build({

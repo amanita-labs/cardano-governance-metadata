@@ -4,12 +4,13 @@ import {
 	AuthorSchema,
 	ExternalUpdateSchema,
 	HashedReferenceSchema,
+	maxCodePoints,
 } from "../core/schemas.js";
 
 export const Cip108BodySchema = z
 	.object({
-		title: z.string().max(80),
-		abstract: z.string().max(2500),
+		title: maxCodePoints(80),
+		abstract: maxCodePoints(2500),
 		motivation: z.string(),
 		rationale: z.string(),
 		references: z.array(HashedReferenceSchema).optional(),
