@@ -142,8 +142,9 @@ export function encodeGovAction(govAction: CslValue): GovAction {
 			const a = govAction.as_treasury_withdrawals_action();
 			const withdrawals = a.withdrawals();
 			const keys = withdrawals.keys();
+			const keysLen = keys.len();
 			const rewards: Reward[] = [];
-			for (let i = 0; i < keys.len(); i++) {
+			for (let i = 0; i < keysLen; i++) {
 				const addr = keys.get(i);
 				const value = withdrawals.get(addr);
 				if (!value) continue;
@@ -173,8 +174,9 @@ export function encodeGovAction(govAction: CslValue): GovAction {
 			const a = govAction.as_new_committee_action();
 			const committee = a.committee();
 			const memberKeys = committee.members_keys();
+			const memberKeysLen = memberKeys.len();
 			const members = [];
-			for (let i = 0; i < memberKeys.len(); i++) {
+			for (let i = 0; i < memberKeysLen; i++) {
 				const cred = memberKeys.get(i);
 				const epoch = committee.get_member_epoch(cred);
 				if (epoch === undefined) continue;
@@ -184,8 +186,9 @@ export function encodeGovAction(govAction: CslValue): GovAction {
 				});
 			}
 			const removeList = a.members_to_remove();
+			const removeListLen = removeList.len();
 			const removed = [];
-			for (let i = 0; i < removeList.len(); i++) {
+			for (let i = 0; i < removeListLen; i++) {
 				removed.push(encodeCredential(removeList.get(i)));
 			}
 			const id = a.gov_action_id();
