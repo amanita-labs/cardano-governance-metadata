@@ -1,5 +1,6 @@
+# Coverage is opt-in via `bun run test:coverage` (used by CI); plain
+# `bun test` / `test:watch` skip it for faster local iteration.
 [test]
-coverage = true
 coverageReporter = ["text", "lcov"]
 
 [install]
