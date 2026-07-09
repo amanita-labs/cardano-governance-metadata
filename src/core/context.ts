@@ -194,6 +194,18 @@ export function createDocumentLoader(
 	const fetchImpl = options?.fetch ?? globalThis.fetch;
 	const cache = options?.cache ?? new Map<string, RemoteContextDocument>();
 
+	// The default trusted patterns (official Intersect governance-actions
+	// hosts) are always honored under `allowlist`, in addition to any
+	// caller-supplied patterns. String globs compile to RegExp once here, not
+	// on every loader call. globToRegExp anchors and escapes, so a glob-free
+	// string still matches exactly.
+	const allowlistMatchers: RegExp[] = [
+		...allowlist,
+		...DEFAULT_TRUSTED_CONTEXT_PATTERNS,
+	].map((pattern) =>
+		typeof pattern === "string" ? globToRegExp(pattern) : pattern,
+	);
+
 	return async (url: string): Promise<RemoteDocument> => {
 		if (Object.prototype.hasOwnProperty.call(overrides, url)) {
 			const override = overrides[url];
@@ -228,14 +240,7 @@ export function createDocumentLoader(
 		}
 
 		if (policy === "allowlist") {
-			// The default trusted patterns (official Intersect governance-actions
-			// hosts) are always honored under `allowlist`, in addition to any
-			// caller-supplied patterns.
-			const effectiveAllowlist = [
-				...allowlist,
-				...DEFAULT_TRUSTED_CONTEXT_PATTERNS,
-			];
-			if (!matchesAllowlist(url, effectiveAllowlist)) {
+			if (!allowlistMatchers.some((matcher) => matcher.test(url))) {
 				throw new ParseError(
 					ErrorCode.MISSING_CONTEXT,
 					`JSON-LD @context "${url}" was NOT fetched: it is not bundled or registered and does not match contextOptions.allowlist or the default trusted hosts, so the "allowlist" policy refused to fetch it. The document was therefore NOT canonicalized and its witness signatures were NOT verified. Add a pattern to contextOptions.allowlist (string with * or ** globs, or a RegExp), pass the document via contextOptions.overrides, or use contextOptions.policy = "fetch".`,
@@ -272,18 +277,6 @@ function wrap(url: string, document: object): RemoteDocument {
 		document: document as JsonLd,
 		documentUrl: url,
 	};
-}
-
-function matchesAllowlist(url: string, patterns: (string | RegExp)[]): boolean {
-	for (const pattern of patterns) {
-		if (typeof pattern === "string") {
-			if (pattern === url) return true;
-			if (globToRegExp(pattern).test(url)) return true;
-		} else if (pattern.test(url)) {
-			return true;
-		}
-	}
-	return false;
 }
 
 function globToRegExp(glob: string): RegExp {

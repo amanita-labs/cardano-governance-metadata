@@ -308,8 +308,8 @@ export async function verifyCip8Witness(
 	}
 
 	const ok = await verifyEd25519Signature(
-		bytesToHex(signature),
-		bytesToHex(sigStructureBytes),
+		signature,
+		sigStructureBytes,
 		publicKeyHex,
 	);
 	return { valid: ok };

@@ -45,9 +45,10 @@
   "scripts": {
     "build": "bun run build:esm && bun run build:types && bun run check:dist",
     "check:dist": "node scripts/check-dist-exports.mjs",
-    "build:esm": "bun build ./src/index.ts --outdir ./dist --format esm --target node --external jsonld --external blakejs --external @noble/ed25519 --external zod --external @emurgo/cardano-serialization-lib-nodejs --external @emurgo/cardano-serialization-lib-browser --external @emurgo/cardano-serialization-lib-asmjs && bun build ./src/cip100/index.ts --outdir ./dist/cip100 --format esm --target node --external jsonld --external blakejs --external @noble/ed25519 --external zod --external @emurgo/cardano-serialization-lib-nodejs --external @emurgo/cardano-serialization-lib-browser --external @emurgo/cardano-serialization-lib-asmjs && bun build ./src/cip108/index.ts --outdir ./dist/cip108 --format esm --target node --external jsonld --external blakejs --external @noble/ed25519 --external zod --external @emurgo/cardano-serialization-lib-nodejs --external @emurgo/cardano-serialization-lib-browser --external @emurgo/cardano-serialization-lib-asmjs && bun build ./src/cip119/index.ts --outdir ./dist/cip119 --format esm --target node --external jsonld --external blakejs --external @noble/ed25519 --external zod --external @emurgo/cardano-serialization-lib-nodejs --external @emurgo/cardano-serialization-lib-browser --external @emurgo/cardano-serialization-lib-asmjs && bun build ./src/cip136/index.ts --outdir ./dist/cip136 --format esm --target node --external jsonld --external blakejs --external @noble/ed25519 --external zod --external @emurgo/cardano-serialization-lib-nodejs --external @emurgo/cardano-serialization-lib-browser --external @emurgo/cardano-serialization-lib-asmjs && bun build ./src/cip169/index.ts --outdir ./dist/cip169 --format esm --target node --external jsonld --external blakejs --external @noble/ed25519 --external zod --external @emurgo/cardano-serialization-lib-nodejs --external @emurgo/cardano-serialization-lib-browser --external @emurgo/cardano-serialization-lib-asmjs",
+    "build:esm": "node scripts/build-esm.mjs",
     "build:types": "tsc --project tsconfig.build.json --emitDeclarationOnly",
     "test": "bun test",
+    "test:coverage": "bun test --coverage",
     "test:watch": "bun test --watch",
     "type-check": "tsc --noEmit",
     "lint": "biome check ./src",
